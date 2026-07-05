@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EMBER OS — REPORTS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400&amp;family=Montserrat:wght@300&amp;family=Playfair+Display:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#e5e2e1",
+                        "aura-white": "#f5f5f5",
+                        "secondary-container": "#986100",
+                        "on-secondary-fixed": "#2a1800",
+                        "void": "#050505",
+                        "primary-container": "#c9c6c5",
+                        "heritage-charcoal": "#121212",
+                        "on-primary-fixed": "#1c1b1b",
+                        "on-primary": "#313030",
+                        "surface-variant": "#353434",
+                        "error": "#ffb4ab",
+                        "surface-bright": "#3a3939",
+                        "secondary-fixed-dim": "#ffb95a",
+                        "surface-container-high": "#2b2a2a",
+                        "primary-fixed": "#e5e2e1",
+                        "on-tertiary-container": "#535252",
+                        "on-error-container": "#ffdad6",
+                        "outline": "#8f918d",
+                        "on-secondary-container": "#ffeddc",
+                        "on-tertiary-fixed": "#1b1c1b",
+                        "inverse-primary": "#5f5e5d",
+                        "on-secondary-fixed-variant": "#643f00",
+                        "tertiary-fixed": "#e4e2e1",
+                        "error-container": "#93000a",
+                        "surface-container-low": "#1c1b1b",
+                        "secondary": "#ffb95a",
+                        "primary": "#e5e2e1",
+                        "primary-fixed-dim": "#c9c6c5",
+                        "surface-container-highest": "#353434",
+                        "on-surface-variant": "#c5c7c2",
+                        "tertiary-container": "#c8c6c5",
+                        "surface": "#141313",
+                        "surface-tint": "#c9c6c5",
+                        "on-primary-fixed-variant": "#474646",
+                        "inverse-on-surface": "#313030",
+                        "tertiary": "#e4e2e1",
+                        "on-tertiary": "#303030",
+                        "outline-variant": "#454744",
+                        "on-primary-container": "#535252",
+                        "background": "#141313",
+                        "surface-container-lowest": "#0e0e0e",
+                        "ember-spark": "#e29a2e",
+                        "on-background": "#e5e2e1",
+                        "secondary-fixed": "#ffddb6",
+                        "inverse-surface": "#e5e2e1",
+                        "steel-mist": "#8c8c8c",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "surface-container": "#201f1f",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "surface-dim": "#141313",
+                        "on-secondary": "#462a00",
+                        "on-error": "#690005"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "section-gap": "12rem",
+                        "margin-desktop": "10vw",
+                        "content-gap": "4rem",
+                        "margin-mobile": "1.5rem",
+                        "gutter": "2rem"
+                    },
+                    "fontFamily": {
+                        "subheader": ["Montserrat"],
+                        "metadata": ["Space Mono"],
+                        "headline-lg": ["Playfair Display"],
+                        "headline-display": ["Playfair Display"],
+                        "headline-lg-mobile": ["Playfair Display"],
+                        "label-caps": ["Space Mono"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "subheader": ["24px", { "lineHeight": "1.5", "letterSpacing": "6px", "fontWeight": "300" }],
+                        "metadata": ["12px", { "lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "400" }],
+                        "headline-lg": ["80px", { "lineHeight": "1.1", "fontWeight": "700" }],
+                        "headline-display": ["120px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["48px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "label-caps": ["10px", { "lineHeight": "1.2", "letterSpacing": "0.1em", "fontWeight": "700" }],
+                        "body-sm": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.8", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.void');
+            color: theme('colors.aura-white');
+            margin: 0;
+            overflow-x: hidden;
+        }
+        .radial-glow {
+            background: radial-gradient(circle at 50% 10%, rgba(226, 154, 46, 0.05) 0%, transparent 60%);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .artifact-card:hover {
+            background-color: theme('colors.heritage-charcoal');
+            transition: background-color 600ms ease;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col selection:bg-ember-spark selection:text-void">
+<div class="radial-glow"></div>
+<!-- TopNavBar Component -->
+<nav class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-desktop py-8 bg-background dark:bg-background bg-gradient-to-b from-heritage-charcoal to-transparent">
+<div class="font-headline-lg-mobile text-headline-lg-mobile text-primary dark:text-primary tracking-tighter">
+            EMBER OS
+        </div>
+<ul class="hidden md:flex gap-gutter items-center font-subheader text-subheader uppercase tracking-widest">
+<li class="text-steel-mist transition-colors duration-500 hover:text-aura-white transition-all duration-300 cursor-pointer active:opacity-70">
+                ARCHIVE
+            </li>
+<li class="text-steel-mist transition-colors duration-500 hover:text-aura-white transition-all duration-300 cursor-pointer active:opacity-70">
+                VOICE
+            </li>
+<li class="text-steel-mist transition-colors duration-500 hover:text-aura-white transition-all duration-300 cursor-pointer active:opacity-70">
+                MEMORY
+            </li>
+<li class="text-ember-spark relative after:content-[''] after:absolute after:-bottom-2 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-ember-spark after:rounded-full after:shadow-[0_0_8px_#e29a2e] cursor-pointer active:opacity-70">
+                SEQUENCE
+            </li>
+</ul>
+<div class="flex gap-4 items-center">
+<span class="material-symbols-outlined text-steel-mist hover:text-aura-white cursor-pointer transition-colors duration-300" data-icon="settings">settings</span>
+<span class="material-symbols-outlined text-steel-mist hover:text-aura-white cursor-pointer transition-colors duration-300" data-icon="account_circle">account_circle</span>
+</div>
+</nav>
+<main class="flex-grow pt-32 px-margin-desktop relative z-10 flex flex-col lg:flex-row gap-gutter pb-section-gap">
+<!-- LEFT SIDEBAR -->
+<aside class="w-full lg:w-1/4 flex flex-col gap-content-gap sticky top-32 h-[calc(100vh-8rem)] overflow-y-auto pr-4 hidden lg:flex">
+<div>
+<h2 class="font-subheader text-subheader uppercase tracking-widest text-aura-white mb-8">ARCHIVE</h2>
+<div class="mb-12">
+<h3 class="font-label-caps text-label-caps text-steel-mist mb-6">TRENDS</h3>
+<ul class="flex flex-col gap-6">
+<li class="flex items-start gap-4 group cursor-pointer relative">
+<div class="absolute -left-6 top-1.5 w-1.5 h-1.5 rounded-full bg-ember-spark shadow-[0_0_8px_#e29a2e]"></div>
+<span class="font-metadata text-metadata text-steel-mist pt-1">001</span>
+<div>
+<p class="font-body-sm text-body-sm text-aura-white group-hover:text-ember-spark transition-colors duration-300">The Morning Ledger</p>
+<p class="font-metadata text-metadata text-steel-mist mt-1">2026-07-04</p>
+</div>
+</li>
+<li class="flex items-start gap-4 group cursor-pointer">
+<span class="font-metadata text-metadata text-steel-mist pt-1">002</span>
+<div>
+<p class="font-body-sm text-body-sm text-steel-mist group-hover:text-aura-white transition-colors duration-300">Market Synthesis Q3</p>
+<p class="font-metadata text-metadata text-steel-mist mt-1 opacity-50">2026-07-03</p>
+</div>
+</li>
+</ul>
+</div>
+<div class="mb-12">
+<h3 class="font-label-caps text-label-caps text-steel-mist mb-6">SESSIONS</h3>
+<ul class="flex flex-col gap-6">
+<li class="flex items-start gap-4 group cursor-pointer">
+<span class="font-metadata text-metadata text-steel-mist pt-1">003</span>
+<div>
+<p class="font-body-sm text-body-sm text-steel-mist group-hover:text-aura-white transition-colors duration-300">Strategy Alignment</p>
+<p class="font-metadata text-metadata text-steel-mist mt-1 opacity-50">2026-07-01</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</aside>
+<!-- MAIN READING PANE -->
+<article class="w-full lg:w-[55%] flex flex-col min-h-screen">
+<header class="mb-16">
+<div class="font-metadata text-metadata text-steel-mist mb-6 uppercase">
+                    TRENDS · 2026-07-04 · GENERATED BY TREND-WATCH
+                </div>
+<h1 class="font-headline-lg text-headline-lg text-aura-white mb-4">The Morning Ledger</h1>
+<p class="font-subheader text-subheader text-steel-mist">AI · UNITY · UNREAL</p>
+</header>
+<div class="prose prose-invert max-w-none font-body-lg text-body-lg text-on-surface flex flex-col gap-8">
+<section>
+<h2 class="font-metadata text-metadata text-steel-mist mb-4 uppercase">§ Artificial Intelligence</h2>
+<p class="mb-6 text-on-surface/90">
+                        The convergence of generative models and real-time rendering environments has reached a critical inflection point. Systems previously siloed within specialized research branches are now actively bridging the gap between conceptual generation and spatial execution.
+                    </p>
+<p class="mb-6 text-on-surface/90">
+                        Observations from the past 48 hours indicate a sustained effort to optimize token-to-polygon pipelines, reducing latency overhead in dynamic scene reconstruction.
+                    </p>
+<ol class="font-metadata text-metadata text-ember-spark flex flex-col gap-4 mb-8">
+<li>001. Latency reduction in spatial reasoning APIs.</li>
+<li>002. Emergence of self-correcting geometry shaders.</li>
+<li>003. Semantic mapping protocols standardized across major engines.</li>
+</ol>
+</section>
+<blockquote class="bg-heritage-charcoal p-8 relative overflow-hidden my-8">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-ember-spark shadow-[0_0_12px_#e29a2e]"></div>
+<p class="font-headline-lg-mobile text-headline-lg-mobile text-aura-white opacity-90 italic">
+                        "The architecture of tomorrow is written in the dormant spaces between the nodes."
+                    </p>
+</blockquote>
+<section>
+<h2 class="font-metadata text-metadata text-steel-mist mb-4 uppercase">§ Unity</h2>
+<ul class="flex flex-col gap-6">
+<li>
+<a class="font-body-lg text-body-lg text-aura-white hover:text-ember-spark transition-colors duration-300 relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-px after:bg-ember-spark/30 after:hover:bg-ember-spark" href="#">
+                                Integration of new rendering pipelines discussed in Q3 forums.
+                            </a>
+</li>
+<li>
+<a class="font-body-lg text-body-lg text-aura-white hover:text-ember-spark transition-colors duration-300 relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-px after:bg-ember-spark/30 after:hover:bg-ember-spark" href="#">
+                                Experimental shader graphs pushed to nightly builds.
+                            </a>
+</li>
+<li>
+<a class="font-body-lg text-body-lg text-aura-white hover:text-ember-spark transition-colors duration-300 relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-px after:bg-ember-spark/30 after:hover:bg-ember-spark" href="#">
+                                Community feedback highlights physics engine discrepancies.
+                            </a>
+</li>
+</ul>
+</section>
+</div>
+<footer class="mt-24 pt-8 border-t-0 flex gap-8">
+<button class="font-label-caps text-label-caps text-aura-white uppercase tracking-widest hover:text-ember-spark transition-colors duration-300 flex items-center gap-2 group relative">
+<div class="absolute inset-0 bg-ember-spark/0 group-hover:bg-ember-spark/5 blur-md transition-all duration-300"></div>
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                    OPEN IN OBSIDIAN
+                </button>
+<button class="font-label-caps text-label-caps text-aura-white uppercase tracking-widest hover:text-ember-spark transition-colors duration-300 flex items-center gap-2 group relative">
+<div class="absolute inset-0 bg-ember-spark/0 group-hover:bg-ember-spark/5 blur-md transition-all duration-300"></div>
+<span class="material-symbols-outlined text-[16px]">record_voice_over</span>
+                    SPEAK THIS REPORT
+                </button>
+<button class="font-label-caps text-label-caps text-aura-white uppercase tracking-widest hover:text-ember-spark transition-colors duration-300 flex items-center gap-2 group relative">
+<div class="absolute inset-0 bg-ember-spark/0 group-hover:bg-ember-spark/5 blur-md transition-all duration-300"></div>
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+                    COPY
+                </button>
+</footer>
+</article>
+<!-- RIGHT MARGIN -->
+<aside class="w-full lg:w-[20%] flex flex-col gap-16 sticky top-32 h-[calc(100vh-8rem)] overflow-y-auto hidden lg:flex">
+<nav class="flex flex-col gap-4">
+<a class="font-metadata text-metadata text-aura-white flex items-center gap-2 group" href="#">
+<div class="w-1.5 h-1.5 rounded-full bg-ember-spark shadow-[0_0_8px_#e29a2e]"></div>
+                    § AI
+                </a>
+<a class="font-metadata text-metadata text-steel-mist hover:text-aura-white transition-colors duration-300 pl-3.5" href="#">
+                    § UNITY
+                </a>
+<a class="font-metadata text-metadata text-steel-mist hover:text-aura-white transition-colors duration-300 pl-3.5" href="#">
+                    § UNREAL
+                </a>
+<a class="font-metadata text-metadata text-steel-mist hover:text-aura-white transition-colors duration-300 pl-3.5" href="#">
+                    § REPOS
+                </a>
+</nav>
+<div>
+<h3 class="font-label-caps text-label-caps text-steel-mist mb-6 uppercase">RELATED ARTIFACTS</h3>
+<div class="flex flex-col gap-4">
+<div class="artifact-card p-4 bg-transparent border-0 cursor-pointer">
+<p class="font-body-sm text-body-sm text-aura-white mb-2">Neural Linkage Theories</p>
+<p class="font-metadata text-metadata text-steel-mist opacity-70">2026-06-28</p>
+</div>
+<div class="artifact-card p-4 bg-transparent border-0 cursor-pointer">
+<p class="font-body-sm text-body-sm text-aura-white mb-2">Engine Comparison Matrix</p>
+<p class="font-metadata text-metadata text-steel-mist opacity-70">2026-07-02</p>
+</div>
+</div>
+</div>
+</aside>
+</main>
+<script>
+        // Atmospheric interaction: subtle spotlight effect on mouse move
+        document.addEventListener('mousemove', (e) => {
+            const glow = document.querySelector('.radial-glow');
+            if(glow) {
+                const x = (e.clientX / window.innerWidth) * 100;
+                const y = (e.clientY / window.innerHeight) * 100;
+                glow.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(226, 154, 46, 0.03) 0%, transparent 50%)`;
+            }
+        });
+    </script>
+</body></html>

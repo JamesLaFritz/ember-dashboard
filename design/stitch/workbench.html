@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EMBER OS - WORKBENCH</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;family=Montserrat:wght@300;400;700&amp;family=Playfair+Display:wght@700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary-container": "#986100",
+                      "on-surface-variant": "#c5c7c2",
+                      "on-tertiary-fixed-variant": "#474746",
+                      "outline": "#8f918d",
+                      "surface-container-low": "#1c1b1b",
+                      "surface-container-high": "#2b2a2a",
+                      "inverse-on-surface": "#313030",
+                      "on-secondary-container": "#ffeddc",
+                      "surface-container-highest": "#353434",
+                      "on-background": "#e5e2e1",
+                      "on-primary-fixed": "#1c1b1b",
+                      "inverse-surface": "#e5e2e1",
+                      "void": "#050505",
+                      "surface": "#141313",
+                      "on-tertiary": "#303030",
+                      "secondary-fixed-dim": "#ffb95a",
+                      "heritage-charcoal": "#121212",
+                      "primary-fixed": "#e5e2e1",
+                      "on-error-container": "#ffdad6",
+                      "background": "#141313",
+                      "on-secondary": "#462a00",
+                      "outline-variant": "#454744",
+                      "surface-dim": "#141313",
+                      "secondary": "#ffb95a",
+                      "primary": "#e5e2e1",
+                      "surface-container": "#201f1f",
+                      "on-secondary-fixed": "#2a1800",
+                      "error-container": "#93000a",
+                      "on-surface": "#e5e2e1",
+                      "surface-variant": "#353434",
+                      "surface-tint": "#c9c6c5",
+                      "surface-container-lowest": "#0e0e0e",
+                      "secondary-fixed": "#ffddb6",
+                      "ember-spark": "#e29a2e",
+                      "on-tertiary-container": "#535252",
+                      "tertiary-fixed-dim": "#c8c6c5",
+                      "on-primary-fixed-variant": "#474646",
+                      "error": "#ffb4ab",
+                      "surface-bright": "#3a3939",
+                      "on-primary": "#313030",
+                      "steel-mist": "#8c8c8c",
+                      "tertiary-fixed": "#e4e2e1",
+                      "tertiary-container": "#c8c6c5",
+                      "inverse-primary": "#5f5e5d",
+                      "on-tertiary-fixed": "#1b1c1b",
+                      "primary-fixed-dim": "#c9c6c5",
+                      "tertiary": "#e4e2e1",
+                      "on-primary-container": "#535252",
+                      "primary-container": "#c9c6c5",
+                      "aura-white": "#f5f5f5",
+                      "on-error": "#690005",
+                      "on-secondary-fixed-variant": "#643f00"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "section-gap": "12rem",
+                      "gutter": "2rem",
+                      "content-gap": "4rem",
+                      "margin-mobile": "1.5rem",
+                      "margin-desktop": "10vw"
+              },
+              "fontFamily": {
+                      "subheader": [
+                              "Montserrat"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Playfair Display"
+                      ],
+                      "headline-display": [
+                              "Playfair Display"
+                      ],
+                      "metadata": [
+                              "Space Mono"
+                      ],
+                      "label-caps": [
+                              "Space Mono"
+                      ],
+                      "headline-lg": [
+                              "Playfair Display"
+                      ]
+              },
+              "fontSize": {
+                      "subheader": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "letterSpacing": "6px",
+                                      "fontWeight": "300"
+                              }
+                      ],
+                      "body-sm": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.8",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-display": [
+                              "120px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "metadata": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-caps": [
+                              "10px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.1em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-lg": [
+                              "80px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        /* Base styles forcing minimal rounding */
+        * { border-radius: 0 !important; }
+        
+        /* Torchlight effect */
+        .torchlight {
+            pointer-events: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 40;
+            background: radial-gradient(circle 800px at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(226, 154, 46, 0.03), transparent 80%);
+            mix-blend-mode: screen;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #121212;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e29a2e;
+        }
+    </style>
+</head>
+<body class="bg-void text-on-background min-h-screen flex flex-col font-body-sm relative overflow-hidden">
+<div class="torchlight"></div>
+<!-- TopNavBar (Adapted for WORKBENCH) -->
+<nav class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-desktop py-8 bg-background dark:bg-background text-on-background bg-gradient-to-b from-heritage-charcoal to-transparent">
+<div class="font-headline-lg text-headline-lg text-primary dark:text-primary tracking-tighter hidden md:block">EMBER OS</div>
+<div class="font-headline-lg-mobile text-headline-lg-mobile text-primary dark:text-primary tracking-tighter md:hidden">EMBER OS</div>
+<ul class="flex gap-8 font-subheader text-subheader uppercase tracking-widest hidden md:flex">
+<li class="text-steel-mist transition-colors duration-500 hover:text-aura-white transition-all duration-300 cursor-pointer active:opacity-70">HUD</li>
+<li class="text-ember-spark relative after:content-[''] after:absolute after:-bottom-2 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-ember-spark after:rounded-full after:shadow-[0_0_8px_#e29a2e] cursor-pointer active:opacity-70">WORKBENCH</li>
+<li class="text-steel-mist transition-colors duration-500 hover:text-aura-white transition-all duration-300 cursor-pointer active:opacity-70">REPORTS</li>
+</ul>
+<div class="flex gap-4 items-center">
+<div class="font-metadata text-metadata text-steel-mist flex gap-3">
+<span class="flex items-center gap-1">CLAUDE <span class="w-1.5 h-1.5 bg-ember-spark inline-block shadow-[0_0_4px_#e29a2e]"></span></span>
+<span class="flex items-center gap-1">LM STUDIO <span class="w-1.5 h-1.5 bg-ember-spark inline-block shadow-[0_0_4px_#e29a2e]"></span></span>
+</div>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-steel-mist hover:text-aura-white cursor-pointer transition-colors duration-300">settings</span>
+<span class="material-symbols-outlined text-steel-mist hover:text-aura-white cursor-pointer transition-colors duration-300">account_circle</span>
+</div>
+</div>
+</nav>
+<!-- Top Model Bar -->
+<div class="fixed top-[100px] w-full z-40 bg-heritage-charcoal py-2 px-margin-desktop flex items-center justify-between font-metadata text-metadata border-b-0 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+<div class="flex items-center gap-6 text-steel-mist">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 bg-ember-spark inline-block shadow-[0_0_4px_#e29a2e]"></span>
+<span class="text-aura-white">qwen3-32b · loaded</span>
+</div>
+<div class="flex items-center gap-2 w-32">
+<span>CTX</span>
+<div class="h-1 bg-surface-container-high w-full">
+<div class="h-full bg-ember-spark shadow-[0_0_4px_#e29a2e]" style="width: 14%;"></div>
+</div>
+<span>14%</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 text-steel-mist">
+<span class="material-symbols-outlined text-sm">folder</span>
+<span>WORKSPACE: C:\Data\Unity\Projects\Echoes of Aralon</span>
+</div>
+<div class="flex gap-4">
+<button class="text-steel-mist hover:text-ember-spark transition-colors uppercase tracking-widest relative group">
+<span class="relative z-10">LOAD</span>
+<div class="absolute inset-0 bg-ember-spark opacity-0 group-hover:opacity-10 transition-opacity"></div>
+</button>
+<button class="text-steel-mist hover:text-ember-spark transition-colors uppercase tracking-widest relative group">
+<span class="relative z-10">UNLOAD</span>
+<div class="absolute inset-0 bg-ember-spark opacity-0 group-hover:opacity-10 transition-opacity"></div>
+</button>
+<button class="text-aura-white flex items-center gap-1 hover:text-ember-spark transition-colors uppercase tracking-widest">
+                    PRESET: CODING AGENT
+                    <span class="material-symbols-outlined text-sm">arrow_drop_down</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Main Workspace Area -->
+<main class="flex-1 mt-[160px] flex px-margin-desktop gap-gutter pb-24 h-[calc(100vh-160px)]">
+<!-- Center-Left Column (Conversation/Agent) -->
+<div class="w-[65%] flex flex-col h-full relative">
+<div class="flex-1 overflow-y-auto pr-8 pb-32 flex flex-col gap-12 pt-8">
+<!-- User Message -->
+<div class="self-end flex items-start gap-4 max-w-[80%]">
+<div class="bg-heritage-charcoal p-6 text-on-surface shadow-[0_4px_24px_rgba(0,0,0,0.8)] border-l-2 border-l-transparent">
+<p class="font-body-lg text-body-lg">Add a TODO comment to the top of PlayerMotor.cs and list the files in Scripts/</p>
+</div>
+</div>
+<!-- Assistant Reasoning -->
+<div class="self-start flex items-start gap-4 max-w-[80%] pl-4 border-l border-surface-container-high">
+<p class="font-body-sm text-body-sm text-steel-mist italic">Analyzing project structure and file contents...</p>
+</div>
+<!-- Tool Call Card -->
+<div class="self-start w-full bg-heritage-charcoal p-6 shadow-[0_8px_32px_rgba(0,0,0,0.9)] relative overflow-hidden group hover:bg-[#151515] transition-colors duration-600">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-ember-spark shadow-[0_0_12px_#e29a2e]"></div>
+<div class="flex justify-between items-center mb-4">
+<div class="font-label-caps text-label-caps text-ember-spark uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">terminal</span>
+                            TOOL · list_dir
+                        </div>
+</div>
+<div class="font-metadata text-metadata text-steel-mist bg-void p-4">
+<div class="text-on-surface-variant mb-2 opacity-60">Path: ./Scripts/</div>
+<pre class="text-steel-mist">PlayerMotor.cs
+InputManager.cs
+CameraFollow.cs
+InventorySystem.cs
+AudioController.cs</pre>
+</div>
+</div>
+<!-- Approval Card (Centerpiece) -->
+<div class="self-start w-full bg-heritage-charcoal p-8 shadow-[0_12px_48px_rgba(0,0,0,0.95)] relative mt-4">
+<div class="absolute inset-0 bg-gradient-to-br from-[rgba(226,154,46,0.05)] to-transparent pointer-events-none"></div>
+<div class="flex justify-between items-center mb-6 relative z-10">
+<div class="font-label-caps text-label-caps text-aura-white uppercase tracking-widest flex items-center gap-2">
+<span class="w-2 h-2 bg-ember-spark shadow-[0_0_8px_#e29a2e] animate-pulse"></span>
+                            APPROVAL REQUIRED · write_file
+                        </div>
+<div class="font-metadata text-metadata text-steel-mist">PlayerMotor.cs</div>
+</div>
+<div class="font-metadata text-metadata bg-void p-4 mb-6 border-l border-surface-container-high">
+<pre class="whitespace-pre-wrap"><code class="text-error opacity-80">- using UnityEngine;
+- 
+- public class PlayerMotor : MonoBehaviour
+<span class="text-[#4ade80]">+ // TODO: Refactor movement calculations to fixed update</span>
+<span class="text-[#4ade80]">+ using UnityEngine;</span>
+<span class="text-[#4ade80]">+ </span>
+<span class="text-[#4ade80]">+ public class PlayerMotor : MonoBehaviour</span></code></pre>
+</div>
+<div class="flex gap-6 relative z-10">
+<button class="font-label-caps text-label-caps text-aura-white uppercase tracking-widest py-3 px-6 relative group bg-surface-container-lowest">
+<span class="relative z-10">APPROVE</span>
+<div class="absolute inset-0 bg-ember-spark opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+<div class="absolute bottom-0 left-0 h-[1px] w-full bg-ember-spark shadow-[0_0_8px_#e29a2e]"></div>
+</button>
+<button class="font-label-caps text-label-caps text-steel-mist hover:text-error transition-colors uppercase tracking-widest py-3 px-6">
+                            DENY
+                        </button>
+<button class="font-label-caps text-label-caps text-steel-mist hover:text-aura-white transition-colors uppercase tracking-widest py-3 px-6 ml-auto">
+                            ALWAYS ALLOW
+                        </button>
+</div>
+</div>
+<!-- Streaming Row -->
+<div class="self-start flex items-end gap-2">
+<p class="font-body-lg text-body-lg text-on-surface">I've added the TODO comment to PlayerMotor.cs. The file has been successfully modified.</p>
+<span class="w-2 h-5 bg-ember-spark inline-block animate-pulse mb-1 shadow-[0_0_8px_#e29a2e]"></span>
+</div>
+</div>
+<!-- Fixed Bottom Input -->
+<div class="absolute bottom-0 left-0 w-full pt-8 pb-4 bg-gradient-to-t from-void via-void to-transparent z-20">
+<div class="flex items-center gap-4 border-b border-surface-container-high focus-within:border-ember-spark transition-colors pb-2">
+<span class="material-symbols-outlined text-steel-mist hover:text-ember-spark cursor-pointer transition-colors">mic</span>
+<input class="flex-1 bg-transparent border-none outline-none font-metadata text-metadata text-aura-white placeholder:text-surface-container-highest focus:ring-0 p-0" placeholder="instruct the agent..." type="text"/>
+<span class="material-symbols-outlined text-ember-spark cursor-pointer hover:scale-110 transition-transform">arrow_upward</span>
+</div>
+<div class="flex justify-between mt-2 font-metadata text-metadata text-surface-container-highest">
+<span>SHIFT + ENTER for new line</span>
+<span>1.2k tok/s</span>
+</div>
+</div>
+</div>
+<!-- Right Rail (Context & Tools) -->
+<div class="w-[35%] h-full flex flex-col gap-12 border-l border-surface-container-lowest pl-gutter overflow-y-auto pb-24 pt-8">
+<div>
+<h2 class="font-subheader text-subheader uppercase tracking-widest text-steel-mist mb-8">SESSION</h2>
+<div class="bg-heritage-charcoal p-6 mb-8 relative">
+<div class="font-label-caps text-label-caps text-steel-mist mb-2 uppercase tracking-widest">System Prompt</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant opacity-80 leading-relaxed">
+                        You are an expert Unity C# developer. Prioritize clean architecture, adhere to SOLID principles, and always check file context before modifying structural code. Current focus: Player input refactoring.
+                    </p>
+</div>
+</div>
+<div>
+<h3 class="font-label-caps text-label-caps text-steel-mist mb-4 uppercase tracking-widest flex items-center justify-between">
+                    Active Tools
+                    <span class="material-symbols-outlined text-sm">settings_suggest</span>
+</h3>
+<ul class="font-metadata text-metadata flex flex-col gap-4">
+<li class="flex items-center justify-between text-aura-white group hover:bg-surface-container-lowest p-2 transition-colors -ml-2">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-sm text-steel-mist">description</span>
+                            read_file
+                        </span>
+<span class="w-1.5 h-1.5 bg-ember-spark rounded-full shadow-[0_0_4px_#e29a2e]"></span>
+</li>
+<li class="flex items-center justify-between text-aura-white group hover:bg-surface-container-lowest p-2 transition-colors -ml-2 bg-surface-container-lowest">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-sm text-ember-spark">edit_document</span>
+                            write_file
+                        </span>
+<span class="w-1.5 h-1.5 bg-surface-container-high rounded-full"></span>
+</li>
+<li class="flex items-center justify-between text-aura-white group hover:bg-surface-container-lowest p-2 transition-colors -ml-2">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-sm text-steel-mist">edit</span>
+                            edit_file
+                        </span>
+<span class="w-1.5 h-1.5 bg-surface-container-high rounded-full"></span>
+</li>
+<li class="flex items-center justify-between text-aura-white group hover:bg-surface-container-lowest p-2 transition-colors -ml-2">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-sm text-steel-mist">folder_open</span>
+                            list_dir
+                        </span>
+<span class="w-1.5 h-1.5 bg-ember-spark rounded-full shadow-[0_0_4px_#e29a2e]"></span>
+</li>
+<li class="flex items-center justify-between text-aura-white group hover:bg-surface-container-lowest p-2 transition-colors -ml-2">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-sm text-steel-mist">search</span>
+                            grep
+                        </span>
+<span class="w-1.5 h-1.5 bg-ember-spark rounded-full shadow-[0_0_4px_#e29a2e]"></span>
+</li>
+<li class="flex items-center justify-between text-aura-white group hover:bg-surface-container-lowest p-2 transition-colors -ml-2 opacity-50">
+<span class="flex items-center gap-3">
+<span class="material-symbols-outlined text-sm text-steel-mist">terminal</span>
+                            run_command
+                        </span>
+<span class="w-1.5 h-1.5 bg-surface-container-high rounded-full"></span>
+</li>
+</ul>
+</div>
+<div>
+<h3 class="font-label-caps text-label-caps text-steel-mist mb-4 uppercase tracking-widest">Allowlist Patterns</h3>
+<div class="bg-void p-4 border-l border-surface-container-high font-metadata text-metadata text-steel-mist flex flex-col gap-2">
+<code>git status</code>
+<code>dotnet build --no-restore</code>
+</div>
+</div>
+<div>
+<h3 class="font-label-caps text-label-caps text-steel-mist mb-4 uppercase tracking-widest">History</h3>
+<ul class="flex flex-col gap-6">
+<li class="group cursor-pointer">
+<div class="font-body-sm text-body-sm text-on-surface group-hover:text-ember-spark transition-colors">Refactor InputManager bindings</div>
+<div class="font-metadata text-metadata text-surface-container-highest mt-1">2 HOURS AGO</div>
+</li>
+<li class="group cursor-pointer">
+<div class="font-body-sm text-body-sm text-on-surface group-hover:text-ember-spark transition-colors">Optimize chunk loading logic</div>
+<div class="font-metadata text-metadata text-surface-container-highest mt-1">YESTERDAY</div>
+</li>
+<li class="group cursor-pointer">
+<div class="font-body-sm text-body-sm text-on-surface group-hover:text-ember-spark transition-colors">Setup initial project structure</div>
+<div class="font-metadata text-metadata text-surface-container-highest mt-1">3 DAYS AGO</div>
+</li>
+</ul>
+</div>
+</div>
+</main>
+<script>
+        // Subtle torchlight interaction
+        document.addEventListener('mousemove', (e) => {
+            const torch = document.querySelector('.torchlight');
+            if(torch) {
+                torch.style.setProperty('--mouse-x', e.clientX + 'px');
+                torch.style.setProperty('--mouse-y', e.clientY + 'px');
+            }
+        });
+    </script>
+</body></html>

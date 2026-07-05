@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMBER OS — Workbench</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400&family=Space+Mono:wght@400;700&family=Inter:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ember.css">
+</head>
+<body>
+<nav>
+  <span class="wordmark">EMBER OS</span>
+  <div class="links">
+    <a href="/">HUD</a>
+    <a class="active" href="/workbench.html">WORKBENCH</a>
+    <a href="/reports.html">REPORTS</a>
+  </div>
+  <div class="chips"><span class="chip" id="chip-lm">LM STUDIO<span class="dot"></span></span></div>
+</nav>
+
+<div class="modelbar">
+  <span class="meta">MODEL</span>
+  <select id="model"></select>
+  <button class="ghost" id="loadBtn">Load</button>
+  <button class="ghost" id="unloadBtn">Unload</button>
+  <span class="meta">WORKSPACE</span>
+  <select id="workspace"></select>
+  <span class="meta">PRESET</span>
+  <select id="preset"></select>
+  <button class="ghost primary" id="newSession">New Session</button>
+  <span class="meta" id="sessionBadge">no session</span>
+</div>
+
+<main class="bench">
+  <section class="chat" id="chat">
+    <p class="msg reason">Pick a model and workspace, start a session, and put the local machine to work. Writes and commands stop for your approval — always.</p>
+  </section>
+  <aside class="rail">
+    <section class="block">
+      <h3 class="label">Tools</h3>
+      <div class="rows" id="tools"></div>
+    </section>
+    <section class="block">
+      <h3 class="label">Allowlist</h3>
+      <div class="rows" id="allowlist"><span class="meta">empty — approvals build it</span></div>
+    </section>
+  </aside>
+</main>
+
+<form class="composer" id="composer">
+  <input id="composer-input" autocomplete="off" placeholder="instruct the agent…" disabled>
+  <button class="ghost primary" type="submit">Send</button>
+</form>
+
+<script src="workbench.js"></script>
+</body>
+</html>

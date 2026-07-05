@@ -1,0 +1,14 @@
+{
+  "name": "ember-dashboard",
+  "version": "0.1.0",
+  "description": "Ember OS — Jarvis HUD + LM Studio agent workbench over the JamesMind vault",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMBER OS — Reports</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400&family=Space+Mono:wght@400;700&family=Inter:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ember.css">
+</head>
+<body>
+<nav>
+  <span class="wordmark">EMBER OS</span>
+  <div class="links">
+    <a href="/">HUD</a>
+    <a href="/workbench.html">WORKBENCH</a>
+    <a class="active" href="/reports.html">REPORTS</a>
+  </div>
+  <div class="chips"><span class="chip on">VAULT<span class="dot"></span></span></div>
+</nav>
+
+<main class="reports">
+  <aside class="archive" id="archive"><h3 class="label" style="margin-bottom:1.6rem">Archive</h3></aside>
+
+  <section class="reading" id="reading">
+    <p class="meta metaline" id="r-meta">SELECT A DOCUMENT FROM THE ARCHIVE</p>
+    <h1 id="r-title">The Reading Room</h1>
+    <p class="sub" id="r-sub">Vault · Reports · Memory</p>
+    <div class="md" id="r-body"></div>
+    <div class="readactions" id="r-actions"></div>
+  </section>
+
+  <aside id="toc-rail">
+    <h3 class="label" style="margin-bottom:1.2rem">Sections</h3>
+    <div class="rows" id="toc"><span class="meta">—</span></div>
+  </aside>
+</main>
+
+<script src="reports.js"></script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EMBER OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&amp;family=Montserrat:wght@300&amp;family=Space+Mono:wght@400;700&amp;family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary": "#e4e2e1",
+                        "on-background": "#e5e2e1",
+                        "on-primary-fixed": "#1c1b1b",
+                        "steel-mist": "#8c8c8c",
+                        "heritage-charcoal": "#121212",
+                        "background": "#141313",
+                        "secondary": "#ffb95a",
+                        "on-tertiary": "#303030",
+                        "secondary-fixed": "#ffddb6",
+                        "on-primary-container": "#535252",
+                        "on-secondary-fixed-variant": "#643f00",
+                        "surface-container-high": "#2b2a2a",
+                        "on-error": "#690005",
+                        "secondary-container": "#986100",
+                        "on-surface": "#e5e2e1",
+                        "on-primary-fixed-variant": "#474646",
+                        "tertiary-container": "#c8c6c5",
+                        "surface-dim": "#141313",
+                        "on-secondary-fixed": "#2a1800",
+                        "surface-container-low": "#1c1b1b",
+                        "primary-container": "#c9c6c5",
+                        "primary": "#e5e2e1",
+                        "on-secondary-container": "#ffeddc",
+                        "error-container": "#93000a",
+                        "on-primary": "#313030",
+                        "error": "#ffb4ab",
+                        "on-tertiary-container": "#535252",
+                        "surface-container-highest": "#353434",
+                        "tertiary-fixed-dim": "#c8c6c5",
+                        "inverse-primary": "#5f5e5d",
+                        "on-error-container": "#ffdad6",
+                        "void": "#050505",
+                        "primary-fixed-dim": "#c9c6c5",
+                        "surface-container-lowest": "#0e0e0e",
+                        "aura-white": "#f5f5f5",
+                        "surface-container": "#201f1f",
+                        "on-tertiary-fixed-variant": "#474746",
+                        "surface": "#141313",
+                        "primary-fixed": "#e5e2e1",
+                        "on-secondary": "#462a00",
+                        "outline": "#8f918d",
+                        "on-tertiary-fixed": "#1b1c1b",
+                        "tertiary-fixed": "#e4e2e1",
+                        "surface-variant": "#353434",
+                        "on-surface-variant": "#c5c7c2",
+                        "inverse-on-surface": "#313030",
+                        "inverse-surface": "#e5e2e1",
+                        "ember-spark": "#e29a2e",
+                        "surface-bright": "#3a3939",
+                        "surface-tint": "#c9c6c5",
+                        "secondary-fixed-dim": "#ffb95a",
+                        "outline-variant": "#454744"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "section-gap": "12rem",
+                        "margin-desktop": "10vw",
+                        "margin-mobile": "1.5rem",
+                        "content-gap": "4rem",
+                        "gutter": "2rem"
+                    },
+                    fontFamily: {
+                        "metadata": ["Space Mono"],
+                        "headline-display": ["Playfair Display"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-caps": ["Space Mono"],
+                        "headline-lg-mobile": ["Playfair Display"],
+                        "headline-lg": ["Playfair Display"],
+                        "subheader": ["Montserrat"]
+                    },
+                    fontSize: {
+                        "metadata": ["12px", { lineHeight: "1.4", letterSpacing: "0.05em", fontWeight: "400" }],
+                        "headline-display": ["120px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "body-sm": ["16px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "body-lg": ["18px", { lineHeight: "1.8", fontWeight: "400" }],
+                        "label-caps": ["10px", { lineHeight: "1.2", letterSpacing: "0.1em", fontWeight: "700" }],
+                        "headline-lg-mobile": ["48px", { lineHeight: "1.2", fontWeight: "700" }],
+                        "headline-lg": ["80px", { lineHeight: "1.1", fontWeight: "700" }],
+                        "subheader": ["24px", { lineHeight: "1.5", letterSpacing: "6px", fontWeight: "300" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.void');
+            color: theme('colors.on-background');
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .torchlight {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vw;
+            height: 80vw;
+            background: radial-gradient(circle, rgba(226,154,46,0.05) 0%, rgba(5,5,5,0) 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .orb-pulse {
+            animation: pulse-ring 4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(226,154,46, 0.4); }
+            70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(226,154,46, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(226,154,46, 0); }
+        }
+    </style>
+</head>
+<body class="font-body-sm antialiased selection:bg-ember-spark selection:text-void">
+<div class="torchlight"></div>
+<!-- Top Navigation -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-desktop py-8 bg-gradient-to-b from-heritage-charcoal to-transparent">
+<div class="font-headline-lg text-primary tracking-tighter">EMBER OS</div>
+<nav class="hidden md:flex space-x-12">
+<a class="font-subheader text-subheader uppercase tracking-widest text-ember-spark relative after:content-[''] after:absolute after:-bottom-2 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-ember-spark after:rounded-full after:shadow-[0_0_8px_#e29a2e]" href="#">HUD</a>
+<a class="font-subheader text-subheader uppercase tracking-widest text-steel-mist hover:text-aura-white transition-all duration-300" href="#">WORKBENCH</a>
+<a class="font-subheader text-subheader uppercase tracking-widest text-steel-mist hover:text-aura-white transition-all duration-300" href="#">REPORTS</a>
+</nav>
+<div class="flex items-center space-x-6 font-metadata text-metadata text-steel-mist">
+<div class="flex items-center space-x-2">
+<span>CLAUDE</span>
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
+</div>
+<div class="flex items-center space-x-2">
+<span>LM STUDIO</span>
+<span class="w-2 h-2 rounded-full bg-ember-spark"></span>
+</div>
+</div>
+</header>
+<!-- Main Layout Grid -->
+<main class="relative z-10 w-full h-screen grid grid-cols-12 gap-gutter px-margin-desktop pt-32 pb-12 overflow-hidden">
+<!-- Left Rail: ARALON VITALS -->
+<aside class="col-span-3 flex flex-col space-y-12 h-full overflow-y-auto pr-4 scrollbar-hide">
+<h2 class="font-subheader text-subheader text-steel-mist opacity-50 uppercase">ARALON VITALS</h2>
+<section class="space-y-4 group">
+<h3 class="font-metadata text-metadata text-ember-spark uppercase">ECHOES OF ARALON</h3>
+<div class="space-y-2">
+<div class="flex justify-between font-metadata text-metadata text-steel-mist">
+<span>Setup Brief</span>
+<span>3/14</span>
+</div>
+<div class="h-px w-full bg-surface-variant relative">
+<div class="absolute top-0 left-0 h-full w-[21%] bg-ember-spark"></div>
+</div>
+</div>
+</section>
+<section class="space-y-4">
+<h3 class="font-metadata text-metadata text-ember-spark uppercase">VAULT</h3>
+<ul class="font-metadata text-metadata text-steel-mist space-y-2">
+<li class="flex justify-between"><span>Wiki Pages</span><span>1,402</span></li>
+<li class="flex justify-between"><span>Unprocessed</span><span class="text-aura-white">42</span></li>
+<li class="flex justify-between"><span>Last Session</span><span>2h ago</span></li>
+</ul>
+</section>
+</aside>
+<!-- Center Stage -->
+<section class="col-span-6 flex flex-col items-center justify-center space-y-16 relative">
+<!-- Voice Orb -->
+<div class="relative w-64 h-64 flex items-center justify-center">
+<div class="absolute inset-0 rounded-full border border-ember-spark/20 orb-pulse"></div>
+<div class="absolute inset-4 rounded-full border border-ember-spark/40 orb-pulse" style="animation-delay: -1s;"></div>
+<div class="absolute inset-8 rounded-full border border-ember-spark/60 orb-pulse" style="animation-delay: -2s;"></div>
+<div class="absolute inset-0 bg-ember-spark/5 rounded-full filter blur-xl"></div>
+<div class="w-16 h-16 bg-ember-spark rounded-full shadow-[0_0_40px_rgba(226,154,46,0.8)] flex items-center justify-center">
+<div class="flex space-x-1 items-center h-4">
+<div class="w-1 bg-void h-full animate-[pulse_1s_ease-in-out_infinite]"></div>
+<div class="w-1 bg-void h-2/3 animate-[pulse_1.2s_ease-in-out_infinite_0.2s]"></div>
+<div class="w-1 bg-void h-full animate-[pulse_0.8s_ease-in-out_infinite_0.4s]"></div>
+</div>
+</div>
+</div>
+<!-- Live Transcript & Input -->
+<div class="text-center w-full max-w-lg space-y-8">
+<p class="font-body-lg text-body-lg italic text-aura-white tracking-wide leading-relaxed">
+                    "Good evening, James. The prototype awaits — Session 1 of the Aralon setup brief is unfinished."
+                </p>
+<div class="relative w-full">
+<input class="w-full bg-transparent border-0 border-b border-steel-mist focus:border-ember-spark focus:ring-0 text-center font-metadata text-metadata text-aura-white placeholder:text-steel-mist/50 transition-colors duration-300 pb-2" placeholder="speak or type..." type="text"/>
+</div>
+</div>
+</section>
+<!-- Right Rail: SKILL DECK -->
+<aside class="col-span-3 flex flex-col space-y-12 h-full overflow-y-auto pl-4">
+<h2 class="font-subheader text-subheader text-steel-mist opacity-50 uppercase text-right">SKILL DECK</h2>
+<section class="space-y-4 text-right">
+<h3 class="font-metadata text-metadata text-ember-spark uppercase">TODAY</h3>
+<ul class="font-metadata text-metadata text-steel-mist space-y-2">
+<li>09:00 - Sync</li>
+<li>11:30 - Review</li>
+<li>15:00 - Focus</li>
+</ul>
+</section>
+<section class="space-y-2 flex flex-col items-end">
+<button class="font-label-caps text-label-caps text-steel-mist hover:text-aura-white transition-colors duration-300 relative group text-right flex items-center justify-end w-full space-x-4">
+<span class="group-hover:text-ember-spark transition-colors">PLAN TODAY</span>
+<span class="opacity-30">01</span>
+</button>
+<button class="font-label-caps text-label-caps text-steel-mist hover:text-aura-white transition-colors duration-300 relative group text-right flex items-center justify-end w-full space-x-4">
+<span class="group-hover:text-ember-spark transition-colors">RUNDOWN</span>
+<span class="opacity-30">02</span>
+</button>
+</section>
+</aside>
+</main>
+</body></html>

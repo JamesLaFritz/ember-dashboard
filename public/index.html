@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMBER OS — HUD</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400&family=Space+Mono:wght@400;700&family=Inter:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ember.css">
+</head>
+<body>
+<nav>
+  <span class="wordmark">EMBER OS</span>
+  <div class="links">
+    <a class="active" href="/">HUD</a>
+    <a href="/workbench.html">WORKBENCH</a>
+    <a href="/reports.html">REPORTS</a>
+  </div>
+  <div class="chips">
+    <span class="chip" id="chip-voice">VOICE<span class="dot"></span></span>
+    <span class="chip" id="chip-lm">LM STUDIO<span class="dot"></span></span>
+    <span class="chip on" id="chip-claude">CLAUDE<span class="dot"></span></span>
+  </div>
+</nav>
+
+<main class="hud">
+  <!-- left rail: vitals -->
+  <aside class="rail" id="vitals">
+    <section class="block">
+      <h3 class="label">Aralon Vitals</h3>
+      <div class="stat"><span>Setup Brief</span><span class="v" id="v-brief">—</span></div>
+      <div class="bar"><i id="v-brief-bar" style="width:0%"></i></div>
+      <div class="stat"><span>Open Loops</span><span class="v" id="v-loops">—</span></div>
+      <div class="stat"><span>Last Devlog</span><span class="v" id="v-devlog">—</span></div>
+    </section>
+    <section class="block">
+      <h3 class="label">Vault</h3>
+      <div class="stat"><span>Wiki Pages</span><span class="v" id="v-wiki">—</span></div>
+      <div class="stat"><span>Unprocessed Raw</span><span class="v" id="v-raw">—</span></div>
+      <div class="stat"><span>Last Session</span><span class="v" id="v-session">—</span></div>
+    </section>
+    <section class="block">
+      <h3 class="label">Writing</h3>
+      <div class="stat"><span>Articles / Month</span><span class="v" id="v-articles">—</span></div>
+      <div class="stat"><span>Ideas Parked</span><span class="v" id="v-ideas">—</span></div>
+    </section>
+    <section class="block">
+      <h3 class="label">Directives</h3>
+      <div class="rows" id="v-directives"><span class="meta">no daily note yet — run Plan Today</span></div>
+    </section>
+  </aside>
+
+  <!-- center stage -->
+  <section class="stage">
+    <div class="orb" id="orb" title="hold space or click to talk">
+      <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+      <div class="core"><div class="bars"><i></i><i></i><i></i><i></i><i></i></div></div>
+    </div>
+    <p class="transcript" id="transcript">Ember is listening. Ask for the rundown, run a skill, or open a note.</p>
+    <form class="ask" id="ask">
+      <input id="ask-input" autocomplete="off" placeholder="speak or type…">
+      <button class="ghost primary" type="submit">Send</button>
+    </form>
+    <div class="popups" id="popups"></div>
+  </section>
+
+  <!-- right rail: deck / schedule / news / trail -->
+  <aside class="rail">
+    <section class="block">
+      <h3 class="label">Skill Deck</h3>
+      <div class="deck" id="deck"></div>
+    </section>
+    <section class="block">
+      <h3 class="label">Today</h3>
+      <div class="rows" id="schedule"><span class="meta">—</span></div>
+    </section>
+    <section class="block">
+      <h3 class="label">Wire · AI / Unity / Unreal</h3>
+      <div class="rows" id="news"><span class="meta">no trends report yet — run Trend Watch</span></div>
+    </section>
+    <section class="block">
+      <h3 class="label">Document Trail</h3>
+      <div class="rows" id="trail"><span class="meta">—</span></div>
+    </section>
+  </aside>
+</main>
+
+<script src="hud.js"></script>
+</body>
+</html>
