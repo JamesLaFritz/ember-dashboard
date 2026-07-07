@@ -39,6 +39,16 @@ h1, h2, .display { font-family: "Playfair Display", Georgia, serif; font-weight:
 a { color: var(--aura); text-decoration: none; }
 a:hover { text-shadow: 0 0 14px var(--ember-soft); }
 
+/* ---- hero header: the Valorbreak banner behind the nav, fading into the void ---- */
+header.hero {
+  position: relative; z-index: 2;
+  background:
+    linear-gradient(180deg, rgba(5,5,5,0.35), rgba(5,5,5,0.62) 55%, var(--void) 97%),
+    url("assets/banner.png") center 32% / cover no-repeat;
+  padding-bottom: 56px;
+}
+body.benchpage header.hero { padding-bottom: 26px; } /* workbench guards its vertical space */
+
 /* ---- top nav ---- */
 nav {
   display: flex; align-items: center; gap: 2.5rem;
@@ -142,8 +152,12 @@ nav .chips { display: flex; gap: 1.4rem; }
   background: var(--void); color: var(--aura); border: none; border-bottom: 1px solid #333;
   font-family: "Space Mono", monospace; font-size: 12px; padding: .35rem .5rem; outline: none; max-width: 340px;
 }
-.bench { display: grid; grid-template-columns: 1fr 300px; gap: 2rem; padding: 1.4rem 3rem 6rem; }
-.chat { display: flex; flex-direction: column; gap: 1.4rem; }
+/* Workbench is a fixed-viewport app: header + modelbars + composer stay put,
+   only the chat column and the rail scroll. */
+body.benchpage { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.bench { display: grid; grid-template-columns: 1fr 300px; gap: 2rem; padding: 1.4rem 3rem 0; flex: 1; min-height: 0; overflow: hidden; }
+.chat { display: flex; flex-direction: column; gap: 1.4rem; overflow-y: auto; min-height: 0; padding-right: .6rem; padding-bottom: 1rem; }
+.bench .rail { overflow-y: auto; min-height: 0; padding-bottom: 1rem; }
 .msg { max-width: 82%; padding: .9rem 1.2rem; font-size: 14px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
 .msg.user { align-self: flex-end; background: var(--surface-low); color: var(--aura); }
 .msg.assistant { align-self: flex-start; color: var(--text); }
@@ -154,7 +168,7 @@ nav .chips { display: flex; gap: 1.4rem; }
 .diff { background: #0a0a0a; font-family: Consolas, monospace; font-size: 12px; padding: .8rem; margin: .6rem 0; max-height: 320px; overflow: auto; white-space: pre-wrap; }
 .diff .del { color: #ff8f88; } .diff .add { color: #7dc98f; }
 .approve-actions { display: flex; gap: 1.2rem; margin-top: .5rem; }
-.composer { position: fixed; bottom: 0; left: 0; right: 320px; padding: 1.2rem 3rem; background: linear-gradient(transparent, var(--void) 30%); display: flex; gap: 1rem; z-index: 3; }
+.composer { padding: .9rem 3rem 1.1rem; background: var(--void); display: flex; gap: 1rem; z-index: 3; }
 .composer input { flex: 1; background: transparent; border: none; border-bottom: 1px solid var(--mist); color: var(--aura); font-family: "Space Mono", monospace; font-size: 13px; padding: .6rem .2rem; outline: none; }
 .composer input:focus { border-bottom-color: var(--ember); }
 .caret { display: inline-block; width: 8px; height: 15px; background: var(--ember); animation: blink 1s steps(1) infinite; vertical-align: text-bottom; }
@@ -184,5 +198,26 @@ nav .chips { display: flex; gap: 1.4rem; }
 .md th, .md td { padding: .4rem .8rem; text-align: left; } .md th { color: var(--mist); font-family: "Space Mono", monospace; font-size: 11px; }
 .md tr { background: transparent; } .md tr:nth-child(even) { background: rgba(255,255,255,0.02); }
 .readactions { display: flex; gap: 1.6rem; margin-top: 2.6rem; }
+
+/* ---- HUD settings panel ---- */
+.settings {
+  position: fixed; top: 84px; right: 3rem; z-index: 5; width: 300px;
+  background: var(--charcoal); padding: 1.2rem 1.4rem 1.4rem;
+  box-shadow: 0 0 40px rgba(0,0,0,.7);
+}
+.settings::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--ember); box-shadow: 0 0 10px var(--ember-soft); }
+.settings .t { font-family: "Space Mono", monospace; font-size: 11px; color: var(--ember); letter-spacing: .08em; margin-bottom: 1rem; }
+.settings .field { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .9rem; font-family: "Space Mono", monospace; font-size: 11px; color: var(--mist); letter-spacing: .08em; }
+.settings select, .settings input[type=range] {
+  background: var(--void); color: var(--aura); border: none; border-bottom: 1px solid #333;
+  font-family: "Space Mono", monospace; font-size: 12px; padding: .25rem .4rem; outline: none; max-width: 170px;
+}
+.settings input[type=checkbox] { accent-color: var(--ember); }
+.chip.click { cursor: pointer; } .chip.click:hover { color: var(--aura); }
+
+/* ---- small inline controls (session delete, allowlist remove, tool toggles) ---- */
+.rows .row .x { margin-left: auto; background: none; border: none; color: #4a4a4a; cursor: pointer; font-family: "Space Mono", monospace; font-size: 11px; padding: 0 .3rem; }
+.rows .row .x:hover { color: var(--err); }
+.rows .row.tog { cursor: pointer; } .rows .row.tog:hover { background: linear-gradient(90deg, rgba(226,154,46,0.08), transparent); }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-thumb { background: #262626; } ::-webkit-scrollbar-track { background: transparent; }

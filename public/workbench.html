@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EMBER OS — Workbench</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400&family=Space+Mono:wght@400;700&family=Inter:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/icon.png">
 <link rel="stylesheet" href="ember.css">
 </head>
-<body>
+<body class="benchpage">
+<header class="hero">
 <nav>
   <span class="wordmark">EMBER OS</span>
   <div class="links">
@@ -17,6 +19,7 @@
   </div>
   <div class="chips"><span class="chip" id="chip-lm">LM STUDIO<span class="dot"></span></span></div>
 </nav>
+</header>
 
 <div class="modelbar">
   <span class="meta">MODEL</span>
@@ -25,10 +28,24 @@
   <button class="ghost" id="unloadBtn">Unload</button>
   <span class="meta">WORKSPACE</span>
   <select id="workspace"></select>
+  <button class="ghost" id="wsAdd" title="add a folder as a workspace">+</button>
+  <button class="ghost" id="wsRemove" title="remove the selected workspace">−</button>
   <span class="meta">PRESET</span>
   <select id="preset"></select>
+  <span class="meta">PERMS</span>
+  <select id="mode" title="ask: approve each write · plan: read-only · auto: skip all approvals">
+    <option value="ask">Ask</option>
+    <option value="plan">Plan · read-only</option>
+    <option value="auto">Auto · skip approvals</option>
+  </select>
   <button class="ghost primary" id="newSession">New Session</button>
-  <span class="meta" id="sessionBadge">no session</span>
+  <span class="meta">SESSION</span>
+  <select id="sessionPicker"><option value="">— none —</option></select>
+  <span class="meta gold" id="tps"></span>
+</div>
+<div class="modelbar" style="margin-top:2px">
+  <span class="meta">PRESET INTENT</span>
+  <span id="presetDesc" style="font-family:Inter,sans-serif;font-size:12.5px;color:var(--mist);line-height:1.5"></span>
 </div>
 
 <main class="bench">
@@ -36,6 +53,14 @@
     <p class="msg reason">Pick a model and workspace, start a session, and put the local machine to work. Writes and commands stop for your approval — always.</p>
   </section>
   <aside class="rail">
+    <section class="block">
+      <h3 class="label">LM Studio</h3>
+      <div class="rows" id="lmstatus"><span class="meta">probing…</span></div>
+    </section>
+    <section class="block">
+      <h3 class="label">Sessions</h3>
+      <div class="rows" id="sessions"><span class="meta">none yet</span></div>
+    </section>
     <section class="block">
       <h3 class="label">Tools</h3>
       <div class="rows" id="tools"></div>

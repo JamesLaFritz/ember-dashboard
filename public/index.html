@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EMBER OS — HUD</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400&family=Space+Mono:wght@400;700&family=Inter:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/icon.png">
 <link rel="stylesheet" href="ember.css">
 </head>
 <body>
+<header class="hero">
 <nav>
   <span class="wordmark">EMBER OS</span>
   <div class="links">
@@ -19,8 +21,20 @@
     <span class="chip" id="chip-voice">VOICE<span class="dot"></span></span>
     <span class="chip" id="chip-lm">LM STUDIO<span class="dot"></span></span>
     <span class="chip on" id="chip-claude">CLAUDE<span class="dot"></span></span>
+    <span class="chip click" id="chip-settings" title="voice & HUD settings">SETTINGS ⚙</span>
   </div>
 </nav>
+</header>
+
+<div class="settings" id="settings" hidden>
+  <div class="t">SETTINGS</div>
+  <label class="field">VOICE <select id="set-voice"></select></label>
+  <label class="field">SPEED <span><input type="range" id="set-speed" min="0.7" max="1.4" step="0.05"> <span id="set-speed-v" class="gold"></span></span></label>
+  <label class="field">SPEAK REPLIES <input type="checkbox" id="set-speak"></label>
+  <label class="field" title="Whisper size for push-to-talk — bigger is more accurate, slower; first use downloads it">STT MODEL <select id="set-stt"></select></label>
+  <label class="field" title="who answers HUD questions by default — auto picks local for lookups, Claude for generation">RESPONDER <select id="set-responder"></select></label>
+  <div class="field" style="margin-bottom:0"><button class="ghost" id="set-test">Test Voice</button><button class="ghost" id="set-close">Close</button></div>
+</div>
 
 <main class="hud">
   <!-- left rail: vitals -->
@@ -58,8 +72,10 @@
     <p class="transcript" id="transcript">Ember is listening. Ask for the rundown, run a skill, or open a note.</p>
     <form class="ask" id="ask">
       <input id="ask-input" autocomplete="off" placeholder="speak or type…">
+      <select id="hud-model" class="mono" style="background:transparent;border:none;border-bottom:1px solid #333;color:var(--mist);outline:none" title="who answers: auto picks local for lookups, Claude for generation"></select>
       <button class="ghost primary" type="submit">Send</button>
     </form>
+    <p class="meta" id="answeredBy" style="margin-top:.5rem"></p>
     <div class="popups" id="popups"></div>
   </section>
 

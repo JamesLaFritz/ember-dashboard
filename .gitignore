@@ -2,3 +2,4 @@ node_modules/
 voice-sidecar/.venv/
 voice-sidecar/models/
 *.log
+.sessions/

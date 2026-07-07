@@ -7,12 +7,62 @@ init();
 async function init() {
   const cfg = await (await fetch('/api/config')).json();
   buildDeck(cfg.skills);
+  buildModelPicker(cfg.hudModels ?? ['auto']);
   refreshVitals();
   setInterval(refreshVitals, 60_000);
   probeStatus();
   connectWS();
   $('ask').addEventListener('submit', (e) => { e.preventDefault(); ask($('ask-input').value); });
   wireVoice();
+  wireSettings(cfg);
+}
+
+// ---------- settings (voice, speed, speak-aloud, STT model, responder) ----------
+const settings = {
+  voice: localStorage.getItem('emberVoice') ?? 'af_heart',
+  speed: +(localStorage.getItem('emberSpeed') ?? 1.05),
+  speak: (localStorage.getItem('emberSpeak') ?? '1') === '1',
+  stt: localStorage.getItem('emberStt') ?? 'small.en',
+};
+const STT_MODELS = ['base.en', 'small.en', 'medium.en', 'distil-large-v3'];
+// Kokoro v1.0 English voices — fallback when the sidecar is offline.
+const FALLBACK_VOICES = ['af_alloy','af_aoede','af_bella','af_heart','af_jessica','af_kore','af_nicole','af_nova','af_river','af_sarah','af_sky','am_adam','am_echo','am_eric','am_fenrir','am_liam','am_michael','am_onyx','am_puck','bf_alice','bf_emma','bf_isabella','bf_lily','bm_daniel','bm_fable','bm_george','bm_lewis'];
+
+async function wireSettings(cfg) {
+  $('chip-settings').onclick = () => $('settings').hidden = !$('settings').hidden;
+  $('set-close').onclick = () => $('settings').hidden = true;
+
+  $('set-stt').innerHTML = STT_MODELS.map(m => `<option ${m === settings.stt ? 'selected' : ''}>${esc(m)}</option>`).join('');
+  $('set-stt').onchange = () => { settings.stt = $('set-stt').value; localStorage.setItem('emberStt', settings.stt); };
+
+  // Default responder mirrors the inline picker next to the ask box — one
+  // stored value ('hudModel'), editable from either place.
+  const models = cfg.hudModels ?? ['auto'];
+  $('set-responder').innerHTML = models.map(m => `<option value="${esc(m)}" ${m === $('hud-model').value ? 'selected' : ''}>${esc(m.toUpperCase())}</option>`).join('');
+  $('set-responder').onchange = () => {
+    localStorage.setItem('hudModel', $('set-responder').value);
+    $('hud-model').value = $('set-responder').value;
+  };
+
+  let voices = FALLBACK_VOICES;
+  try {
+    const res = await (await fetch('/api/voice/voices')).json();
+    if (res.voices?.length) voices = res.voices;
+  } catch { /* sidecar offline — fallback list */ }
+  if (!voices.includes(settings.voice)) voices = [settings.voice, ...voices];
+  $('set-voice').innerHTML = voices.map(v => `<option ${v === settings.voice ? 'selected' : ''}>${esc(v)}</option>`).join('');
+  $('set-speed').value = settings.speed;
+  $('set-speed-v').textContent = `${settings.speed.toFixed(2)}×`;
+  $('set-speak').checked = settings.speak;
+
+  $('set-voice').onchange = () => { settings.voice = $('set-voice').value; localStorage.setItem('emberVoice', settings.voice); };
+  $('set-speed').oninput = () => {
+    settings.speed = +$('set-speed').value;
+    $('set-speed-v').textContent = `${settings.speed.toFixed(2)}×`;
+    localStorage.setItem('emberSpeed', settings.speed);
+  };
+  $('set-speak').onchange = () => { settings.speak = $('set-speak').checked; localStorage.setItem('emberSpeak', settings.speak ? '1' : '0'); };
+  $('set-test').onclick = () => speak('Forged in darkness. Built for discovery.', true);
 }
 
 // ---------- vitals ----------
@@ -58,12 +108,32 @@ function buildDeck(skills) {
 }
 
 // ---------- assistant ----------
+// Who answers: auto (router decides — local for lookups, Claude for
+// generation), local (LM Studio only), or a Claude tier. Sticky per browser.
+function buildModelPicker(models) {
+  const sel = $('hud-model');
+  sel.innerHTML = models.map(m => `<option value="${esc(m)}">${esc(m.toUpperCase())}</option>`).join('');
+  const saved = localStorage.getItem('hudModel');
+  if (saved && models.includes(saved)) sel.value = saved;
+  sel.onchange = () => {
+    localStorage.setItem('hudModel', sel.value);
+    const mirror = $('set-responder');
+    if (mirror?.options.length) mirror.value = sel.value;
+  };
+}
+
 async function ask(text) {
   text = text.trim(); if (!text) return;
   $('ask-input').value = '';
   $('transcript').textContent = '…';
-  const res = await (await fetch('/api/assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })).json();
+  $('answeredBy').textContent = '';
+  state.asking = true;      // arms the websocket to stream deltas into the transcript
+  delete $('transcript').dataset.stream;
+  const res = await (await fetch('/api/assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, model: $('hud-model').value }) })).json();
+  state.asking = false;
+  delete $('transcript').dataset.stream;
   $('transcript').textContent = res.reply ?? '';
+  $('answeredBy').textContent = res.model ? `answered by ${res.model}` : '';
   for (const p of res.popups ?? []) popup({ title: p.title, body: '', uri: p.uri, rel: p.rel });
   if (res.uri) location.href = res.uri; // open-in-obsidian intents
   speak(res.reply);
@@ -98,6 +168,13 @@ function connectWS() {
   const ws = new WebSocket(`ws://${location.host}/ws`);
   ws.onmessage = (m) => {
     const evt = JSON.parse(m.data);
+    // Local-model answers stream in live; the HTTP reply lands last and is
+    // authoritative (it also strips any mid-hop chatter around tool calls).
+    if (evt.type === 'assistant_delta' && state.asking) {
+      const t = $('transcript');
+      if (!t.dataset.stream) { t.textContent = ''; t.dataset.stream = '1'; }
+      t.textContent += evt.text;
+    }
     if (evt.type === 'skill_progress') {
       const card = document.querySelector(`.card[data-run="${evt.id}"] .b`);
       if (card) card.textContent = `${evt.tool}${evt.detail ? ' · ' + evt.detail : ''}`;
@@ -149,7 +226,7 @@ async function startRec() {
       $('orb').classList.remove('listening');
       const blob = new Blob(chunks, { type: rec.mimeType });
       $('transcript').textContent = 'transcribing…';
-      const res = await (await fetch('/api/voice/stt', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob })).json();
+      const res = await (await fetch('/api/voice/stt?model=' + encodeURIComponent(settings.stt), { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob })).json();
       if (res.text) { $('ask-input').value = res.text; ask(res.text); }
       else $('transcript').textContent = 'Voice sidecar could not transcribe that.';
     };
@@ -162,10 +239,13 @@ async function startRec() {
 function stopRec() {
   if (state.recording) { state.recording.stop(); state.recording = null; }
 }
-async function speak(text) {
-  if (!state.voiceOk || !text) return;
+async function speak(text, force = false) {
+  if (!state.voiceOk || !text || (!settings.speak && !force)) return;
   try {
-    const res = await fetch('/api/voice/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    const res = await fetch('/api/voice/tts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice: settings.voice, speed: settings.speed }),
+    });
     if (!res.ok) return;
     new Audio(URL.createObjectURL(await res.blob())).play();
   } catch { /* voice is optional garnish */ }
