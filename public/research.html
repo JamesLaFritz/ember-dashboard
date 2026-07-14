@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EMBER OS — Reports</title>
+<title>EMBER OS — Research</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400&family=Space+Mono:wght@400;700&family=Inter:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="assets/icon.png">
 <link rel="stylesheet" href="ember.css">
@@ -16,8 +16,8 @@
     <div class="links">
       <a href="/">HUD</a>
       <a href="/workbench.html">WORKBENCH</a>
-      <a class="active" href="/reports.html">REPORTS</a>
-      <a href="/research.html">RESEARCH</a>
+      <a href="/reports.html">REPORTS</a>
+      <a class="active" href="/research.html">RESEARCH</a>
       <a href="/wiki.html">WIKI</a>
     </div>
   </div>
@@ -26,13 +26,13 @@
 </header>
 
 <main class="reports">
-  <aside class="archive" id="archive"><h3 class="label" style="margin-bottom:1.6rem">Archive</h3></aside>
+  <aside class="archive" id="archive"><h3 class="label" style="margin-bottom:1.6rem">Research Library</h3></aside>
 
   <section class="reading" id="reading">
     <div class="reading-scroll">
-      <p class="meta metaline" id="r-meta">SELECT A DOCUMENT FROM THE ARCHIVE</p>
-      <h1 id="r-title">The Reading Room</h1>
-      <p class="sub" id="r-sub">Vault · Reports · Memory</p>
+      <p class="meta metaline" id="r-meta">SELECT A DESIGN DOCUMENT</p>
+      <h1 id="r-title">Research Library</h1>
+      <p class="sub" id="r-sub">Vault · Raw · Research</p>
       <div class="md" id="r-body"></div>
     </div>
     <div class="readactions" id="r-actions"></div>
@@ -44,7 +44,8 @@
   </aside>
 </main>
 
+<script>window.READER = { list: '/api/research', title: 'Research Library', sub: 'Vault · Raw · Research' };</script>
 <script src="speech.js"></script>
-<script src="reports.js"></script>
+<script src="reader.js"></script>
 </body>
 </html>

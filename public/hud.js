@@ -63,6 +63,24 @@ async function wireSettings(cfg) {
   };
   $('set-speak').onchange = () => { settings.speak = $('set-speak').checked; localStorage.setItem('emberSpeak', settings.speak ? '1' : '0'); };
   $('set-test').onclick = () => speak('Forged in darkness. Built for discovery.', true);
+
+  wireSkillModels(cfg.skills);
+}
+
+// Which Claude tier each headless skill run uses. Builtin (rundown) is
+// answered locally, so it has no model to configure.
+const RUN_MODELS = ['haiku', 'sonnet', 'opus'];
+function wireSkillModels(skills) {
+  const box = $('set-skill-models');
+  const configurable = skills.filter(s => !s.builtin);
+  box.innerHTML = configurable.map(s => `
+    <label class="field">${esc(s.quickLabel ?? s.label)}
+      <select data-id="${s.id}">${RUN_MODELS.map(m => `<option ${m === (s.model ?? 'sonnet') ? 'selected' : ''}>${m}</option>`).join('')}</select>
+    </label>`).join('');
+  box.addEventListener('change', (e) => {
+    const sel = e.target.closest('select'); if (!sel) return;
+    fetch('/api/skills/model', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sel.dataset.id, model: sel.value }) });
+  });
 }
 
 // ---------- vitals ----------
@@ -94,17 +112,49 @@ const row = (when, text) => `<div class="row"><span class="when">${when}</span><
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---------- skill deck ----------
+// Quick row: parametrized one-shots (wikify <topic>, devlog <project>, …) —
+// typed args required. Grid: the rest of config.json's skills, one click.
 function buildDeck(skills) {
-  $('deck').innerHTML = skills.map((s, i) =>
+  const quick = skills.filter(s => s.quick || s.quickLabel);
+  const grid = skills.filter(s => !s.quick);
+
+  $('deck-quick').innerHTML = quick.map(s => `
+    <div class="quick-item" data-id="${s.id}">
+      <span class="qlabel">${esc(s.quickLabel ?? s.label)}</span>
+      <div class="qrow">
+        <input class="qinput" placeholder="${esc(s.quickPlaceholder ?? s.placeholder ?? '')}">
+        <button class="qrun" title="run ${esc(s.quickLabel ?? s.label)}">→</button>
+      </div>
+    </div>`).join('');
+  $('deck-quick').addEventListener('click', (e) => {
+    if (e.target.closest('.qrun')) runQuick(e.target.closest('.quick-item'));
+  });
+  $('deck-quick').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.classList.contains('qinput')) { e.preventDefault(); runQuick(e.target.closest('.quick-item')); }
+  });
+
+  $('deck').innerHTML = grid.map((s, i) =>
     `<button data-id="${s.id}" data-builtin="${s.builtin ? 1 : 0}"><span>${esc(s.label)}</span><span class="idx">${String(i + 1).padStart(2, '0')}</span></button>`).join('');
-  $('deck').addEventListener('click', async (e) => {
+  $('deck').addEventListener('click', (e) => {
     const btn = e.target.closest('button'); if (!btn) return;
     if (btn.dataset.builtin === '1') return ask('rundown');
     btn.classList.add('running');
-    const res = await (await fetch('/api/skill', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: btn.dataset.id }) })).json();
-    if (res.runId) state.runs.set(res.runId, btn.dataset.id);
-    popup({ title: `${btn.dataset.id.toUpperCase()} · QUEUED`, body: 'Headless Claude is on it.', progress: true, id: res.runId });
+    runSkill(btn.dataset.id);
   });
+}
+function runQuick(item) {
+  const input = item.querySelector('.qinput');
+  const args = input.value.trim();
+  if (!args) { input.focus(); return; }
+  item.classList.add('running');
+  runSkill(item.dataset.id, args);
+  input.value = '';
+}
+async function runSkill(id, args) {
+  const body = args === undefined ? { id } : { id, args };
+  const res = await (await fetch('/api/skill', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+  if (res.runId) state.runs.set(res.runId, id);
+  popup({ title: `${id.toUpperCase()} · QUEUED`, body: 'Headless Claude is on it.', progress: true, id: res.runId });
 }
 
 // ---------- assistant ----------
@@ -187,6 +237,7 @@ function connectWS() {
         card.querySelector('.b').textContent = (evt.summary ?? '').slice(0, 260);
       }
       document.querySelector(`.deck button[data-id="${evt.skillId}"]`)?.classList.remove('running');
+      document.querySelector(`.deck-quick .quick-item[data-id="${evt.skillId}"]`)?.classList.remove('running');
       refreshVitals();
       if (evt.status === 'done' && evt.summary) speak(summarizeForSpeech(evt.summary));
     }
@@ -215,6 +266,7 @@ function wireVoice() {
   document.addEventListener('keyup', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT') { e.preventDefault(); stop(); } });
 }
 async function startRec() {
+  stopSpeaking(); // barge-in: talking over Ember cuts her off
   if (!state.voiceOk || state.recording) return;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -239,14 +291,11 @@ async function startRec() {
 function stopRec() {
   if (state.recording) { state.recording.stop(); state.recording = null; }
 }
-async function speak(text, force = false) {
+// Chunked queue from speech.js — long replies start speaking immediately and
+// play to the end; a new speak() supersedes whatever is still playing.
+speech.onstate = (on) => $('orb').classList.toggle('speaking', on);
+function speak(text, force = false) {
   if (!state.voiceOk || !text || (!settings.speak && !force)) return;
-  try {
-    const res = await fetch('/api/voice/tts', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice: settings.voice, speed: settings.speed }),
-    });
-    if (!res.ok) return;
-    new Audio(URL.createObjectURL(await res.blob())).play();
-  } catch { /* voice is optional garnish */ }
+  readAloud(text);
 }
+const stopSpeaking = stopReading;

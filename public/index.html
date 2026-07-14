@@ -11,11 +11,15 @@
 <body>
 <header class="hero">
 <nav>
-  <span class="wordmark">EMBER OS</span>
-  <div class="links">
-    <a class="active" href="/">HUD</a>
-    <a href="/workbench.html">WORKBENCH</a>
-    <a href="/reports.html">REPORTS</a>
+  <div class="brand">
+    <span class="wordmark">EMBER OS</span>
+    <div class="links">
+      <a class="active" href="/">HUD</a>
+      <a href="/workbench.html">WORKBENCH</a>
+      <a href="/reports.html">REPORTS</a>
+      <a href="/research.html">RESEARCH</a>
+      <a href="/wiki.html">WIKI</a>
+    </div>
   </div>
   <div class="chips">
     <span class="chip" id="chip-voice">VOICE<span class="dot"></span></span>
@@ -34,6 +38,8 @@
   <label class="field" title="Whisper size for push-to-talk — bigger is more accurate, slower; first use downloads it">STT MODEL <select id="set-stt"></select></label>
   <label class="field" title="who answers HUD questions by default — auto picks local for lookups, Claude for generation">RESPONDER <select id="set-responder"></select></label>
   <div class="field" style="margin-bottom:0"><button class="ghost" id="set-test">Test Voice</button><button class="ghost" id="set-close">Close</button></div>
+  <div class="subhead">SKILL MODELS</div>
+  <div class="skill-models" id="set-skill-models"></div>
 </div>
 
 <main class="hud">
@@ -65,7 +71,7 @@
 
   <!-- center stage -->
   <section class="stage">
-    <div class="orb" id="orb" title="hold space or click to talk">
+    <div class="orb" id="orb" title="hold space or click to talk — talking over Ember interrupts her">
       <span class="ring"></span><span class="ring"></span><span class="ring"></span>
       <div class="core"><div class="bars"><i></i><i></i><i></i><i></i><i></i></div></div>
     </div>
@@ -76,15 +82,16 @@
       <button class="ghost primary" type="submit">Send</button>
     </form>
     <p class="meta" id="answeredBy" style="margin-top:.5rem"></p>
+    <section class="block deck-block">
+      <h3 class="label">Skill Deck</h3>
+      <div class="deck-quick" id="deck-quick"></div>
+      <div class="deck" id="deck"></div>
+    </section>
     <div class="popups" id="popups"></div>
   </section>
 
-  <!-- right rail: deck / schedule / news / trail -->
+  <!-- right rail: schedule / news / trail -->
   <aside class="rail">
-    <section class="block">
-      <h3 class="label">Skill Deck</h3>
-      <div class="deck" id="deck"></div>
-    </section>
     <section class="block">
       <h3 class="label">Today</h3>
       <div class="rows" id="schedule"><span class="meta">—</span></div>
@@ -100,6 +107,7 @@
   </aside>
 </main>
 
+<script src="speech.js"></script>
 <script src="hud.js"></script>
 </body>
 </html>

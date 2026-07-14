@@ -1,0 +1,27 @@
+{
+  "port": 4517,
+  "vaultPath": "C:/path/to/your/obsidian-vault",
+  "vaultName": "YourVault",
+  "lmStudioUrl": "http://localhost:1234",
+  "routerModel": "qwen/qwen3.6-35b-a3b",
+  "claudeCommand": "claude",
+  "claudeHeadlessAllow": ["WebSearch", "WebFetch"],
+  "voiceSidecarUrl": "http://localhost:4518",
+  "workspaces": [
+    "C:/path/to/your/obsidian-vault",
+    "C:/path/to/a/project"
+  ],
+  "skills": [
+    { "id": "rundown", "label": "Rundown", "builtin": true },
+    { "id": "plan-today", "label": "Plan Today", "args": "", "model": "haiku" },
+    { "id": "session-log", "label": "Session Log", "args": "", "model": "haiku" },
+    { "id": "trend-watch", "label": "Trend Watch", "args": "", "model": "sonnet" },
+    { "id": "vault-health", "label": "Vault Health", "args": "", "model": "sonnet" },
+    { "id": "ingest", "label": "Ingest", "args": "", "model": "sonnet" },
+    { "id": "weekly-review", "label": "Weekly Review", "args": "", "model": "sonnet" },
+    { "id": "devlog", "label": "Devlog", "args": "My Game", "model": "sonnet", "quickLabel": "devlog", "quickPlaceholder": "project" },
+    { "id": "wikify", "label": "wikify", "quick": true, "placeholder": "topic", "model": "opus" },
+    { "id": "content-pipeline", "label": "content pipeline", "quick": true, "placeholder": "topic", "model": "opus" },
+    { "id": "write-article", "label": "write article about", "quick": true, "placeholder": "x", "model": "sonnet" }
+  ]
+}

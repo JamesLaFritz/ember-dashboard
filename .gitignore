@@ -1,5 +1,11 @@
 node_modules/
 voice-sidecar/.venv/
 voice-sidecar/models/
+voice-sidecar/obj/
+voice-sidecar/bin/
+voice-sidecar/*.onnx
+voice-sidecar/*.bin
+voice-sidecar/*.wav
 *.log
 .sessions/
+config.json

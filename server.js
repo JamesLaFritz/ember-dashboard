@@ -14,7 +14,8 @@ import { collectVitals } from './lib/vitals.js';
 import { SkillRunner } from './lib/skills.js';
 import { LMStudio } from './lib/lmstudio.js';
 import { Router } from './lib/router.js';
-import { AgentManager, PRESETS, TOOL_DEFS } from './lib/agent.js';
+import { AgentManager, PRESETS, TOOL_DEFS, listSkills } from './lib/agent.js';
+import { MCPManager } from './lib/mcp.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const configPath = path.join(__dirname, 'config.json');
@@ -35,8 +36,9 @@ const broadcast = (evt) => {
 const vault = new Vault(config.vaultPath, config.vaultName);
 const lm = new LMStudio(config.lmStudioUrl);
 const skillRunner = new SkillRunner({ claudeCommand: config.claudeCommand, vaultPath: config.vaultPath, broadcast, allowedTools: config.claudeHeadlessAllow ?? [] });
-const router = new Router({ vault, lm, routerModel: config.routerModel, skillRunner, vitalsFn: () => collectVitals(vault), claudeCommand: config.claudeCommand, allowedTools: config.claudeHeadlessAllow ?? [], broadcast });
-const agents = new AgentManager({ lm, broadcast, workspaces: config.workspaces, stateDir: path.join(__dirname, '.sessions') });
+const router = new Router({ vault, lm, routerModel: config.routerModel, skillRunner, vitalsFn: () => collectVitals(vault), claudeCommand: config.claudeCommand, allowedTools: config.claudeHeadlessAllow ?? [], broadcast, skills: config.skills });
+const mcp = new MCPManager({}); // same server defs Claude Code uses (~/.claude.json)
+const agents = new AgentManager({ lm, mcp, broadcast, workspaces: config.workspaces, stateDir: path.join(__dirname, '.sessions') });
 
 // ---- HUD ----
 app.get('/api/config', (_req, res) => res.json({
@@ -75,8 +77,27 @@ app.post('/api/assistant', async (req, res) => {
 
 app.post('/api/skill', (req, res) => {
   const { id, args } = req.body;
-  if (!config.skills.some(s => s.id === id)) return res.status(400).json({ error: 'unknown skill' });
-  res.json({ runId: skillRunner.run(id, args ?? config.skills.find(s => s.id === id)?.args ?? '') });
+  const skill = config.skills.find(s => s.id === id);
+  if (!skill) return res.status(400).json({ error: 'unknown skill' });
+  res.json({ runId: skillRunner.run(id, args ?? skill.args ?? '', skill.model) });
+});
+
+// Per-skill model default, editable from the HUD settings menu.
+app.post('/api/skills/model', (req, res) => {
+  const { id, model } = req.body;
+  const skill = config.skills.find(s => s.id === id);
+  if (!skill) return res.status(404).json({ error: 'unknown skill' });
+  if (!['haiku', 'sonnet', 'opus'].includes(model)) return res.status(400).json({ error: 'model must be haiku, sonnet, or opus' });
+  skill.model = model;
+  saveConfig();
+  res.json({ ok: true, skills: config.skills });
+});
+
+// Workspace skill library (.claude/skills) — feeds the workbench Skills rail.
+app.get('/api/skills/library', (req, res) => {
+  const ws = String(req.query.workspace ?? '');
+  if (!config.workspaces.includes(ws)) return res.status(400).json({ error: 'unknown workspace' });
+  res.json({ skills: listSkills(ws) });
 });
 
 // ---- Reports (archive reader) ----
@@ -97,6 +118,27 @@ app.get('/api/report', (req, res) => {
   const text = vault.read(rel);
   if (text == null) return res.status(404).json({ error: 'not found' });
   res.json({ rel, text, uri: vault.obsidianUri(rel) });
+});
+
+// ---- Research library (Raw/Research) ----
+app.get('/api/research', (_req, res) => {
+  const files = vault.listMarkdown('Raw/Research', { recurse: true });
+  res.json({ RESEARCH: files.map(f => ({ ...f, uri: vault.obsidianUri(f.rel) })) });
+});
+
+// ---- Wiki (OKF knowledge bundle) ----
+// Grouped by top-level wiki folder; root index.md/log.md land under BUNDLE.
+app.get('/api/wiki', (_req, res) => {
+  const groups = {};
+  for (const f of vault.listMarkdown('Wiki', { recurse: true })) {
+    const parts = f.rel.split('/');            // Wiki/<group>/… or Wiki/<file>
+    const group = parts.length > 2 ? parts[1] : 'BUNDLE';
+    (groups[group] ??= []).push({ ...f, uri: vault.obsidianUri(f.rel) });
+  }
+  const ordered = {};
+  if (groups.BUNDLE) ordered.BUNDLE = groups.BUNDLE;
+  for (const k of Object.keys(groups).filter(k => k !== 'BUNDLE').sort()) ordered[k] = groups[k];
+  res.json(ordered);
 });
 
 // ---- LM Studio ----
@@ -129,7 +171,7 @@ app.get('/api/agent/sessions', (_req, res) => res.json({ sessions: agents.list()
 app.get('/api/agent/:id/history', (req, res) => {
   const s = agents.get(req.params.id);
   if (!s) return res.status(404).json({ error: 'no such session' });
-  res.json({ id: s.id, preset: s.preset, model: s.model, workspace: s.workspace, mode: s.mode, history: s.history, stats: s.stats, allowlist: [...s.allowlist] });
+  res.json({ id: s.id, preset: s.preset, model: s.model, workspace: s.workspace, mode: s.mode, history: s.history, stats: s.stats, allowlist: [...s.allowlist], mcpServers: s.mcpServers });
 });
 app.post('/api/agent/session', (req, res) => {
   try {
@@ -141,6 +183,18 @@ app.delete('/api/agent/:id', (req, res) => res.json({ ok: agents.delete(req.para
 app.post('/api/agent/:id/mode', (req, res) => {
   const mode = agents.setMode(req.params.id, String(req.body.mode ?? ''));
   mode ? res.json({ ok: true, mode }) : res.status(400).json({ error: 'bad session or mode' });
+});
+app.post('/api/agent/:id/preset', (req, res) => {
+  const preset = agents.setPreset(req.params.id, String(req.body.preset ?? ''));
+  preset ? res.json({ ok: true, preset }) : res.status(400).json({ error: 'bad session or preset' });
+});
+// MCP: configured servers (for the rail) and per-session enable/disable.
+app.get('/api/mcp/servers', (_req, res) => res.json({ servers: mcp.status() }));
+app.post('/api/agent/:id/mcp', async (req, res) => {
+  try {
+    const out = await agents.setMcpServer(req.params.id, String(req.body.server ?? ''), !!req.body.enabled);
+    out ? res.json(out) : res.status(404).json({ error: 'no such session or server' });
+  } catch (err) { res.status(502).json({ error: String(err.message ?? err).slice(0, 300) }); }
 });
 app.post('/api/agent/:id/allowlist', (req, res) => {
   const list = agents.updateAllowlist(req.params.id, String(req.body.action ?? 'add'), String(req.body.entry ?? ''));

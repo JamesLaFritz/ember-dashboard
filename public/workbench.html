@@ -11,11 +11,15 @@
 <body class="benchpage">
 <header class="hero">
 <nav>
-  <span class="wordmark">EMBER OS</span>
-  <div class="links">
-    <a href="/">HUD</a>
-    <a class="active" href="/workbench.html">WORKBENCH</a>
-    <a href="/reports.html">REPORTS</a>
+  <div class="brand">
+    <span class="wordmark">EMBER OS</span>
+    <div class="links">
+      <a href="/">HUD</a>
+      <a class="active" href="/workbench.html">WORKBENCH</a>
+      <a href="/reports.html">REPORTS</a>
+      <a href="/research.html">RESEARCH</a>
+      <a href="/wiki.html">WIKI</a>
+    </div>
   </div>
   <div class="chips"><span class="chip" id="chip-lm">LM STUDIO<span class="dot"></span></span></div>
 </nav>
@@ -30,28 +34,12 @@
   <select id="workspace"></select>
   <button class="ghost" id="wsAdd" title="add a folder as a workspace">+</button>
   <button class="ghost" id="wsRemove" title="remove the selected workspace">−</button>
-  <span class="meta">PRESET</span>
-  <select id="preset"></select>
-  <span class="meta">PERMS</span>
-  <select id="mode" title="ask: approve each write · plan: read-only · auto: skip all approvals">
-    <option value="ask">Ask</option>
-    <option value="plan">Plan · read-only</option>
-    <option value="auto">Auto · skip approvals</option>
-  </select>
   <button class="ghost primary" id="newSession">New Session</button>
   <span class="meta">SESSION</span>
   <select id="sessionPicker"><option value="">— none —</option></select>
   <span class="meta gold" id="tps"></span>
 </div>
-<div class="modelbar" style="margin-top:2px">
-  <span class="meta">PRESET INTENT</span>
-  <span id="presetDesc" style="font-family:Inter,sans-serif;font-size:12.5px;color:var(--mist);line-height:1.5"></span>
-</div>
-
 <main class="bench">
-  <section class="chat" id="chat">
-    <p class="msg reason">Pick a model and workspace, start a session, and put the local machine to work. Writes and commands stop for your approval — always.</p>
-  </section>
   <aside class="rail">
     <section class="block">
       <h3 class="label">LM Studio</h3>
@@ -61,9 +49,22 @@
       <h3 class="label">Sessions</h3>
       <div class="rows" id="sessions"><span class="meta">none yet</span></div>
     </section>
+  </aside>
+  <section class="chat" id="chat">
+    <p class="msg reason">Pick a model and workspace, start a session, and put the local machine to work. Writes and commands stop for your approval — always.</p>
+  </section>
+  <aside class="rail">
     <section class="block">
       <h3 class="label">Tools</h3>
       <div class="rows" id="tools"></div>
+    </section>
+    <section class="block">
+      <h3 class="label">Skills</h3>
+      <div class="rows" id="skills"><span class="meta">—</span></div>
+    </section>
+    <section class="block">
+      <h3 class="label">MCP Servers</h3>
+      <div class="rows" id="mcp"><span class="meta">—</span></div>
     </section>
     <section class="block">
       <h3 class="label">Allowlist</h3>
@@ -71,6 +72,18 @@
     </section>
   </aside>
 </main>
+
+<div class="modelbar sessionbar">
+  <span class="meta">PRESET</span>
+  <select id="preset"></select>
+  <span class="meta">PERMS</span>
+  <select id="mode" title="ask: approve each write · plan: read-only · auto: skip all approvals">
+    <option value="ask">Ask</option>
+    <option value="plan">Plan · read-only</option>
+    <option value="auto">Auto · skip approvals</option>
+  </select>
+  <span id="presetDesc" style="flex:1;font-family:Inter,sans-serif;font-size:12px;color:var(--mist);line-height:1.4"></span>
+</div>
 
 <form class="composer" id="composer">
   <input id="composer-input" autocomplete="off" placeholder="instruct the agent…" disabled>
