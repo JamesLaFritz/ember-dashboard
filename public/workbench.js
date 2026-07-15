@@ -31,6 +31,8 @@ async function init() {
   $('wsAdd').onclick = addWorkspace;
   $('wsRemove').onclick = removeWorkspace;
   $('mode').onchange = changeMode;
+  $('compactBtn').onclick = compactNow;
+  $('autoCompact').onchange = toggleAutoCompact;
   $('composer').addEventListener('submit', (e) => { e.preventDefault(); send(); });
 }
 
@@ -59,6 +61,23 @@ async function removeWorkspace() {
 // Both selects live above the composer and act on the CURRENT session:
 // preset swaps the session's system prompt, perms swap the approval mode.
 // With no session open they just seed the next New Session.
+// ---------- context compaction ----------
+async function compactNow() {
+  if (!state.session) return;
+  addMsg('reason', 'Compacting context…');
+  const res = await (await fetch(`/api/agent/${state.session}/compact`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+  if (res.error) return addMsg('reason', `Compact error: ${res.error}`);
+  addMsg('reason', res.compacted
+    ? `Context compacted: ~${fmtTok(res.before)} → ~${fmtTok(res.after)} tokens (older turns folded into a summary; your transcript above is unchanged).`
+    : 'Nothing to compact yet — not enough prior turns.');
+}
+async function toggleAutoCompact() {
+  if (!state.session) return;
+  const res = await (await fetch(`/api/agent/${state.session}/autocompact`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: $('autoCompact').checked }) })).json();
+  if (res.error) return addMsg('reason', `Auto-compact error: ${res.error}`);
+  addMsg('reason', `Auto-compact ${res.autoCompact ? 'on — the agent will summarize old turns as the context fills' : 'off'}.`);
+}
+
 async function changePreset() {
   showPresetDesc();
   if (!state.session) return;
@@ -263,6 +282,7 @@ async function switchSession(id) {
   $('composer-input').disabled = false;
   $('tps').textContent = statLine(h.stats);
   $('mode').value = h.mode ?? 'ask';
+  $('autoCompact').checked = h.autoCompact !== false;
   if ([...$('preset').options].some(o => o.value === h.preset)) $('preset').value = h.preset;
   showPresetDesc();
   $('chat').innerHTML = '';
@@ -271,6 +291,7 @@ async function switchSession(id) {
     if (e.kind === 'user') addMsg('user', e.text);
     else if (e.kind === 'assistant') addAssistant(e.text);
     else if (e.kind === 'reasoning') addReasoning(e.text);
+    else if (e.kind === 'compacted') addMsg('reason', `— context compacted (${e.reason}, ${e.folded} turn${e.folded === 1 ? '' : 's'} folded) —`);
     else if (e.kind === 'tool') toolCard(e.tool, e.args);
     else if (e.kind === 'approval') toolCard(e.tool, `${e.args} → ${e.decision.toUpperCase()}`);
   }
@@ -344,6 +365,10 @@ function connectWS() {
       scrollDown();
     }
     if (evt.type === 'agent_stats') $('tps').textContent = statLine(evt);
+    if (evt.type === 'agent_compacted') {
+      finishStream();
+      addMsg('reason', `— context ${evt.reason === 'auto' ? 'auto-' : ''}compacted: ~${fmtTok(evt.before)} → ~${fmtTok(evt.after)} tokens —`);
+    }
     if (evt.type === 'agent_done') {
       hideThinking();
       if (state.streamEl) {

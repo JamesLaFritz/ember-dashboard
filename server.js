@@ -171,7 +171,7 @@ app.get('/api/agent/sessions', (_req, res) => res.json({ sessions: agents.list()
 app.get('/api/agent/:id/history', (req, res) => {
   const s = agents.get(req.params.id);
   if (!s) return res.status(404).json({ error: 'no such session' });
-  res.json({ id: s.id, preset: s.preset, model: s.model, workspace: s.workspace, mode: s.mode, history: s.history, stats: s.stats, allowlist: [...s.allowlist], mcpServers: s.mcpServers });
+  res.json({ id: s.id, preset: s.preset, model: s.model, workspace: s.workspace, mode: s.mode, history: s.history, stats: s.stats, allowlist: [...s.allowlist], mcpServers: s.mcpServers, autoCompact: s.autoCompact });
 });
 app.post('/api/agent/session', (req, res) => {
   try {
@@ -187,6 +187,17 @@ app.post('/api/agent/:id/mode', (req, res) => {
 app.post('/api/agent/:id/preset', (req, res) => {
   const preset = agents.setPreset(req.params.id, String(req.body.preset ?? ''));
   preset ? res.json({ ok: true, preset }) : res.status(400).json({ error: 'bad session or preset' });
+});
+// Context compaction: manual trigger + auto-compact toggle.
+app.post('/api/agent/:id/compact', async (req, res) => {
+  try {
+    const out = await agents.compact(req.params.id);
+    out ? res.json(out) : res.status(404).json({ error: 'no such session' });
+  } catch (err) { res.status(400).json({ error: String(err.message ?? err) }); }
+});
+app.post('/api/agent/:id/autocompact', (req, res) => {
+  const on = agents.setAutoCompact(req.params.id, !!req.body.on);
+  on === null ? res.status(404).json({ error: 'no such session' }) : res.json({ ok: true, autoCompact: on });
 });
 // MCP: configured servers (for the rail) and per-session enable/disable.
 app.get('/api/mcp/servers', (_req, res) => res.json({ servers: mcp.status() }));

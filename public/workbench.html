@@ -82,6 +82,11 @@
     <option value="plan">Plan · read-only</option>
     <option value="auto">Auto · skip approvals</option>
   </select>
+  <span class="meta">CONTEXT</span>
+  <button class="ghost" id="compactBtn" title="summarize older turns into a compact note to free context">Compact</button>
+  <label class="meta" title="automatically compact when the conversation nears the model's loaded context window" style="display:flex;align-items:center;gap:.3rem;cursor:pointer">
+    <input type="checkbox" id="autoCompact"> auto
+  </label>
   <span id="presetDesc" style="flex:1;font-family:Inter,sans-serif;font-size:12px;color:var(--mist);line-height:1.4"></span>
 </div>
 
