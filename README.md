@@ -65,6 +65,29 @@ cd voice-sidecar
 
 The vault itself isn't in this repo — the dashboard works over any vault that follows the structure described in the article (`Raw → Wiki → Projects` with indexes, skills in `.claude/skills/`).
 
+### Making the agent yours — `identity/`
+
+The workbench agent's personality and its picture of who it works for live in two editable markdown files, not in code:
+
+| File | What it is |
+|---|---|
+| `identity/SOUL.md` | Who the agent is — voice, standards, what it never does |
+| `identity/USER.md` | Who it works for — your stack, how you like to work, what needs confirming |
+
+Presets (Coding Agent, Vault Librarian, Researcher, Design Brainstorm) supply only the **role** for a session; identity is layered underneath. Edit the files and the next session picks them up — no restart.
+
+| Env var | Effect |
+|---|---|
+| `EMBER_SOUL_PATH` / `EMBER_USER_PATH` | Point at files you already maintain (e.g. your vault's own SOUL/USER notes) |
+| `EMBER_IDENTITY_DIR` | Use a different directory containing `SOUL.md` and `USER.md` |
+| `EMBER_IDENTITY=off` | No identity layer — role instructions only |
+
+`identity/USER.md` ships as a **template with placeholders**. Either fill it in locally or, better for a public fork, keep your real profile outside the repo and point `EMBER_USER_PATH` at it.
+
+Both files are re-sent on every turn, so length is context you don't get back — each is truncated at 8,000 chars with a visible marker. On a 32k-context local model, a 4,000-char pair costs roughly 3% of the window per turn.
+
+> **Benchmarking:** use `EMBER_IDENTITY=off`. An identity file is part of the prompt, so comparing models under different identities compares prompts, not models. The session snapshot records which SOUL/USER files a run used.
+
 ## Security posture
 
 The workbench executes model-chosen file writes and shell commands **on your machine, behind approval cards** — read the card, especially for `run_command`. Workspaces are jailed (every model-supplied path is resolved and checked), MCP and write tools never run un-gated outside Auto mode, and session transcripts stay in the gitignored `.sessions/`. Treat Auto mode as what it is: you, pre-approving everything.
