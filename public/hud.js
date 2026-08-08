@@ -86,11 +86,11 @@ function wireSkillModels(skills) {
 // ---------- vitals ----------
 async function refreshVitals() {
   const v = await (await fetch('/api/vitals')).json();
-  const b = v.aralon.brief;
+  const b = v.project.brief;
   $('v-brief').textContent = b ? `${b.done}/${b.total}` : '—';
   $('v-brief-bar').style.width = b && b.total ? `${(100 * b.done / b.total).toFixed(0)}%` : '0%';
-  $('v-loops').textContent = v.aralon.openLoops;
-  $('v-devlog').textContent = v.aralon.daysSinceDevlog == null ? 'never' : `${v.aralon.daysSinceDevlog}d ago`;
+  $('v-loops').textContent = v.project.openLoops;
+  $('v-devlog').textContent = v.project.daysSinceDevlog == null ? 'never' : `${v.project.daysSinceDevlog}d ago`;
   $('v-wiki').textContent = v.vault.wikiPages;
   $('v-raw').textContent = v.vault.rawLoose;
   $('v-session').textContent = v.vault.lastSessionAgeDays == null ? '—' : `${v.vault.lastSessionAgeDays}d ago`;
@@ -104,8 +104,8 @@ async function refreshVitals() {
     ? v.daily.schedule.map(s => `<div class="row"><span class="when">·</span><span>${esc(s)}</span></div>`).join('')
     : '<span class="meta">—</span>';
   $('news').innerHTML = v.news.exists
-    ? ['ai', 'unity', 'unreal'].flatMap(k => v.news[k].slice(0, 2).map(h =>
-        `<div class="row"><span class="when gold">${k.toUpperCase()}</span><a href="${v.news.uri}">${esc(h)}</a></div>`)).join('')
+    ? v.news.sections.flatMap(s => s.items.slice(0, 2).map(h =>
+        `<div class="row"><span class="when gold">${esc(s.heading.toUpperCase())}</span><a href="${v.news.uri}">${esc(h)}</a></div>`)).join('')
     : '<span class="meta">no trends report yet — run Trend Watch</span>';
 }
 const row = (when, text) => `<div class="row"><span class="when">${when}</span><span>${text}</span></div>`;

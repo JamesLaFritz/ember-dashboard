@@ -61,7 +61,25 @@ cd voice-sidecar
 | `routerModel` | Local model the HUD router uses for chat/rundowns |
 | `claudeCommand` / `claudeHeadlessAllow` | Claude CLI binary + tools pre-allowed for headless skill runs (non-interactive runs silently deny everything else) |
 | `workspaces` | Allowlisted roots the workbench agent may operate in |
+| `vitals` | What the left rail tracks — see below |
 | `skills` | The skill deck: vault skill ids + per-skill Claude model tier |
+
+The `vitals` block is what makes the HUD *yours*. Folder conventions (`Wiki/`, `Raw/`, `Daily/`, `System/Memory/`) are the vault contract and stay fixed; the personal parts are configured:
+
+```json
+"vitals": {
+  "project": {
+    "label":  "Your Project",
+    "note":   "Projects/Your Project/Your Project.md",
+    "brief":  "Projects/Your Project/BRIEF.md",
+    "devlog": "Projects/Your Project/Devlog"
+  },
+  "articles":     { "folder": "Projects/Articles", "monthlyTarget": 2 },
+  "newsSections": ["AI", "Unity", "Unreal"]
+}
+```
+
+`project` drives the brief progress bar, open-loop count, and days-since-devlog. `newSections` are the headings pulled from the newest `System/Memory/Reports/*Trends*.md` — change them and the news wire follows. Omit the whole block and the project card degrades to `—` rather than breaking.
 
 The vault itself isn't in this repo — the dashboard works over any vault that follows the structure described in the article (`Raw → Wiki → Projects` with indexes, skills in `.claude/skills/`).
 

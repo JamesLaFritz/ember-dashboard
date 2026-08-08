@@ -36,7 +36,7 @@ const broadcast = (evt) => {
 const vault = new Vault(config.vaultPath, config.vaultName);
 const lm = new LMStudio(config.lmStudioUrl);
 const skillRunner = new SkillRunner({ claudeCommand: config.claudeCommand, vaultPath: config.vaultPath, broadcast, allowedTools: config.claudeHeadlessAllow ?? [] });
-const router = new Router({ vault, lm, routerModel: config.routerModel, skillRunner, vitalsFn: () => collectVitals(vault), claudeCommand: config.claudeCommand, allowedTools: config.claudeHeadlessAllow ?? [], broadcast, skills: config.skills });
+const router = new Router({ vault, lm, routerModel: config.routerModel, skillRunner, vitalsFn: () => collectVitals(vault, config), claudeCommand: config.claudeCommand, allowedTools: config.claudeHeadlessAllow ?? [], broadcast, skills: config.skills });
 const mcp = new MCPManager({}); // same server defs Claude Code uses (~/.claude.json)
 const agents = new AgentManager({ lm, mcp, broadcast, workspaces: config.workspaces, stateDir: path.join(__dirname, '.sessions') });
 
@@ -49,7 +49,7 @@ app.get('/api/config', (_req, res) => res.json({
   hudModels: ['auto', 'local', 'haiku', 'sonnet', 'opus'],
 }));
 
-app.get('/api/vitals', (_req, res) => res.json(collectVitals(vault)));
+app.get('/api/vitals', (_req, res) => res.json(collectVitals(vault, config)));
 
 // Workspaces are user-editable from the workbench; changes persist to
 // config.json. AgentManager holds the same array reference, so push/splice
