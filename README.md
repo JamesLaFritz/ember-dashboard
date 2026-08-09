@@ -110,7 +110,7 @@ Both files are re-sent on every turn, so length is context you don't get back �
 
 The agent reads an `AGENTS.md` at the **workspace root** if one exists; otherwise it falls back to the workbench's own `AGENTS.md`. A workspace file **replaces** the default rather than adding to it — project rules are supposed to win. Override the fallback with `EMBER_AGENTS_PATH`.
 
-`CRAFT.md` at the repo root is the long-form working method (~16k chars ≈ 4k tokens per turn). It is **off by default** and referenced from `AGENTS.md`; set `EMBER_CRAFT=on` to inject it when the work is hard enough to be worth the budget. `EMBER_CRAFT_PATH` points at a different copy.
+`CRAFT.md` at the repo root is the long-form working method (~14.5k chars ≈ 3.6k tokens per turn). It is **off by default** and referenced from `AGENTS.md`; set `EMBER_CRAFT=on` to inject it when the work is hard enough to be worth the budget. The shipped copy is generic on purpose — point `EMBER_CRAFT_PATH` at your own method document if you keep one, since its examples will be worth more than these.
 
 System prompt order is identity → method → project rules → session role, most specific last.
 

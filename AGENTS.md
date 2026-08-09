@@ -61,6 +61,11 @@ tokens on every turn.
 Set `EMBER_CRAFT=on` to load it into the system prompt when the work is hard,
 unfamiliar, or high-stakes enough to be worth the budget.
 
+The shipped copy is deliberately generic. If you keep your own working-method
+document — one that names your projects, your conventions, and the specific
+mistakes that have actually cost you time — point `EMBER_CRAFT_PATH` at it
+instead. A method doc is worth more when its examples are yours.
+
 ## Honesty rules
 
 - Say "I do not know" rather than producing a confident guess.
