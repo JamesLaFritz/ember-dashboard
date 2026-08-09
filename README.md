@@ -106,6 +106,26 @@ Both files are re-sent on every turn, so length is context you don't get back �
 
 > **Benchmarking:** use `EMBER_IDENTITY=off`. An identity file is part of the prompt, so comparing models under different identities compares prompts, not models. The session snapshot records which SOUL/USER files a run used.
 
+### Project instructions — `AGENTS.md`
+
+The agent reads an `AGENTS.md` at the **workspace root** if one exists; otherwise it falls back to the workbench's own `AGENTS.md`. A workspace file **replaces** the default rather than adding to it — project rules are supposed to win. Override the fallback with `EMBER_AGENTS_PATH`.
+
+`CRAFT.md` at the repo root is the long-form working method (~16k chars ≈ 4k tokens per turn). It is **off by default** and referenced from `AGENTS.md`; set `EMBER_CRAFT=on` to inject it when the work is hard enough to be worth the budget. `EMBER_CRAFT_PATH` points at a different copy.
+
+System prompt order is identity → method → project rules → session role, most specific last.
+
+### Workbench memory
+
+The agent has a `remember` tool taking `kind: "lesson" | "decision"` and one line of text. Entries are **scoped per workspace**, stored under `.sessions/memory/` (never inside your project), and injected into every future session on that workspace — the most recent 40, decisions before lessons.
+
+| Action | What happens |
+|---|---|
+| **Compaction** | Writes a session log to `.sessions/logs/<timestamp>-<id>.md` — the handoff summary, token counts, turns folded, and anything `remember`ed. Compaction is the moment history stops being recoverable from context, so that is when a durable record is worth writing |
+| **Clear** | Archives the whole transcript to `.sessions/archive/<timestamp>-<id>.json`, then resets the conversation. The session survives — same id, model, workspace, preset, approvals, MCP servers. If the archive write fails, the clear is refused rather than losing the transcript |
+| **Delete** | Removes the session entirely. Use Clear when you want a fresh context but the same setup |
+
+Archives are listable at `GET /api/agent/archives` and `GET /api/agent/:id/archives`.
+
 ## Security posture
 
 The workbench executes model-chosen file writes and shell commands **on your machine, behind approval cards** — read the card, especially for `run_command`. Workspaces are jailed (every model-supplied path is resolved and checked), MCP and write tools never run un-gated outside Auto mode, and session transcripts stay in the gitignored `.sessions/`. Treat Auto mode as what it is: you, pre-approving everything.

@@ -180,6 +180,17 @@ app.post('/api/agent/session', (req, res) => {
   } catch (err) { res.status(400).json({ error: String(err.message ?? err) }); }
 });
 app.delete('/api/agent/:id', (req, res) => res.json({ ok: agents.delete(req.params.id) }));
+// Clear ≠ delete: archives the transcript, then resets the conversation while
+// keeping the session (model, workspace, preset, allowlist, MCP) intact.
+app.post('/api/agent/:id/clear', (req, res) => {
+  try {
+    const r = agents.clear(req.params.id);
+    if (!r) return res.status(404).json({ error: 'no such session' });
+    res.json(r);
+  } catch (err) { res.status(409).json({ error: String(err.message ?? err) }); }
+});
+app.get('/api/agent/:id/archives', (req, res) => res.json({ archives: agents.archives(req.params.id) }));
+app.get('/api/agent/archives', (_req, res) => res.json({ archives: agents.archives() }));
 app.post('/api/agent/:id/mode', (req, res) => {
   const mode = agents.setMode(req.params.id, String(req.body.mode ?? ''));
   mode ? res.json({ ok: true, mode }) : res.status(400).json({ error: 'bad session or mode' });

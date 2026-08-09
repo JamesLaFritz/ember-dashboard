@@ -32,6 +32,7 @@ async function init() {
   $('wsRemove').onclick = removeWorkspace;
   $('mode').onchange = changeMode;
   $('compactBtn').onclick = compactNow;
+  $('clearBtn').onclick = clearNow;
   $('autoCompact').onchange = toggleAutoCompact;
   $('composer').addEventListener('submit', (e) => { e.preventDefault(); send(); });
 }
@@ -61,6 +62,17 @@ async function removeWorkspace() {
 // Both selects live above the composer and act on the CURRENT session:
 // preset swaps the session's system prompt, perms swap the approval mode.
 // With no session open they just seed the next New Session.
+// ---------- clear (archive + reset) ----------
+async function clearNow() {
+  if (!state.session) return;
+  if (!confirm('Archive this conversation and start fresh?\n\nThe session, model, workspace and approvals stay; the transcript is saved under .sessions/archive/ and can be read back later.')) return;
+  const res = await (await fetch(`/api/agent/${state.session}/clear`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+  if (res.error) return addMsg('reason', `Clear failed: ${res.error}`);
+  $('chat').innerHTML = '';
+  addMsg('reason', `Conversation cleared after ${res.turns} turn(s).`
+    + (res.archive ? ` Archived to ${res.archive}.` : ' Nothing to archive.'));
+}
+
 // ---------- context compaction ----------
 async function compactNow() {
   if (!state.session) return;
