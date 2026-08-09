@@ -30,6 +30,25 @@
 - **Long output is clipped in the middle**, keeping the head and the tail.
   Build errors live in the tail; read it.
 
+## Dependencies — do not churn them
+
+**Do not edit `package.json` (or the equivalent manifest) to change versions
+that are already there.** Pinned versions are pinned deliberately: someone chose
+them, and a toolchain that shifts under a project turns every later result into
+a comparison of library versions rather than of the work.
+
+The single exception: if the task genuinely needs a package that is **not
+listed**, add that package. Add it — do not rewrite the versions of the ones
+around it.
+
+- If a lockfile exists, install with `npm ci`, not `npm install`. `ci` installs
+  exactly what the lockfile says; `install` is free to resolve something newer
+  and silently rewrite the lockfile.
+- If a pinned version genuinely blocks the task, **say so and stop**. Do not
+  downgrade your way around it. That is a decision for the operator, and it is
+  usually a sign the real problem is elsewhere.
+- Never delete or regenerate a lockfile to make an error go away.
+
 ## Before you say you are done
 
 - **Run it.** If what you built can be built, tested, or opened, do that. Read
