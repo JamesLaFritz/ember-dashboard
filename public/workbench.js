@@ -2,7 +2,7 @@
 // Claude-Code-style approval cards, switchable sessions, and live LM status.
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const state = { session: null, streamEl: null, presets: [], tools: [], allow: [], mcp: [] };
+const state = { session: null, streamEl: null, presets: [], tools: [], allow: [], mcp: [], info: null };
 
 init();
 async function init() {
@@ -96,6 +96,7 @@ async function changePreset() {
   const res = await (await fetch(`/api/agent/${state.session}/preset`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preset: $('preset').value }) })).json();
   if (res.error) return addMsg('reason', `Preset error: ${res.error}`);
   addMsg('reason', `Preset → ${res.preset} — system prompt swapped; takes effect next message.`);
+  if (state.info) { state.info.preset = res.preset; renderSessionBar(); }
   refreshSessions();
 }
 async function changeMode() {
@@ -103,6 +104,7 @@ async function changeMode() {
   const res = await (await fetch(`/api/agent/${state.session}/mode`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: $('mode').value }) })).json();
   if (res.error) return addMsg('reason', `Mode error: ${res.error}`);
   addMsg('reason', `Permissions → ${res.mode.toUpperCase()}${res.mode === 'auto' ? ' — every write and command now runs without asking.' : res.mode === 'plan' ? ' — writes and commands are blocked; the agent can only read and propose.' : ''}`);
+  if (state.info) { state.info.mode = res.mode; renderSessionBar(); }
 }
 
 // Tools with a gate can be flipped per session: click toggles ask ↔ auto
@@ -278,6 +280,7 @@ $('sessions').addEventListener('click', async (e) => {
       state.allow = [];
       state.mcp = [];
       renderTools(); renderAllow(); renderMcp();
+      state.info = null; renderSessionBar();
       addMsg('reason', `Session ${del} deleted.`);
     }
     return refreshSessions();
@@ -298,7 +301,8 @@ async function switchSession(id) {
   if ([...$('preset').options].some(o => o.value === h.preset)) $('preset').value = h.preset;
   showPresetDesc();
   $('chat').innerHTML = '';
-  addMsg('reason', `Session ${id} · ${h.preset} · ${h.workspace} · model ${h.model} · perms ${(h.mode ?? 'ask').toUpperCase()}`);
+  state.info = { preset: h.preset, workspace: h.workspace, model: h.model, mode: h.mode ?? 'ask' };
+  renderSessionBar();
   for (const e of h.history ?? []) {
     if (e.kind === 'user') addMsg('user', e.text);
     else if (e.kind === 'assistant') addAssistant(e.text);
@@ -331,7 +335,8 @@ async function newSession() {
   renderTools();
   renderAllow();
   renderMcp();
-  addMsg('reason', `Session ${res.session} · ${$('preset').value} · ${$('workspace').value} · perms ${$('mode').value.toUpperCase()}`);
+  state.info = { preset: $('preset').value, workspace: $('workspace').value, model: $('model').value, mode: $('mode').value };
+  renderSessionBar();
   await refreshSessions(res.session);
 }
 
@@ -480,6 +485,28 @@ function approvalCard(evt) {
   });
   $('chat').appendChild(el);
   scrollDown();
+}
+
+// Pinned above the transcript so the workspace you are writing to and the
+// permission mode you are running under stay on screen. Previously this was the
+// first chat message, which scrolled away the moment work started — exactly when
+// "which folder is this touching, and is it gated?" starts to matter.
+function renderSessionBar() {
+  const bar = $('sessionbar');
+  const i = state.info;
+  if (!i || !state.session) { bar.hidden = true; bar.innerHTML = ''; return; }
+  // constrained, not escaped: it lands in a class attribute as well as in text
+  const raw = String(i.mode ?? 'ask').toLowerCase();
+  const mode = ['ask', 'plan', 'auto'].includes(raw) ? raw : 'ask';
+  const sep = '<span class="sb-sep">·</span>';
+  bar.innerHTML = [
+    `<span>SESSION <b>${esc(state.session)}</b></span>`,
+    `<span>${esc(i.preset ?? '—')}</span>`,
+    `<span>MODEL <b>${esc(i.model ?? '—')}</b></span>`,
+    `<span class="sb-ws">${esc(i.workspace ?? '—')}</span>`,
+    `<span class="sb-perm ${mode}">${mode.toUpperCase()}</span>`,
+  ].join(sep);
+  bar.hidden = false;
 }
 
 function addMsg(kind, text) {
