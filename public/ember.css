@@ -221,14 +221,12 @@ body.benchpage { height: 100vh; display: flex; flex-direction: column; overflow:
 .composer input { flex: 1; background: transparent; border: none; border-bottom: 1px solid var(--mist); color: var(--aura); font-family: "Space Mono", monospace; font-size: 13px; padding: .6rem .2rem; outline: none; }
 .composer input:focus { border-bottom-color: var(--ember); }
 
-/* Controls and composer live INSIDE the chat column, not as full-width bars
-   under the grid: the preset, permission mode and Send box belong to the
-   conversation, and at 3-column width a bar spanning the rails put them
-   nowhere near the text they act on. Strip the page gutters they carried when
-   they were page-level, and let only .chat take the leftover height. */
-.chatcol > .modelbar { margin: 0; flex: 0 0 auto; }
+/* The composer lives INSIDE the chat column — it belongs to the conversation,
+   and at bench width a full-page Send box sat nowhere near the text it acts on.
+   The preset/perms/context row is the opposite case: it configures the whole
+   session, so it stays a page-level footer under the grid, below both the chat
+   and the tool rails. Strip the composer's page gutter; only .chat grows. */
 .chatcol > .composer { padding: .8rem 0 0; flex: 0 0 auto; }
-.chatcol > .sessionbar { margin-top: 0; }
 .chatcol > .runbar { flex: 0 0 auto; }
 .caret { display: inline-block; width: 8px; height: 15px; background: var(--ember); animation: blink 1s steps(1) infinite; vertical-align: text-bottom; }
 @keyframes blink { 50% { opacity: 0 } }
