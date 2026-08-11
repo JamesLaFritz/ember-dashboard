@@ -126,6 +126,17 @@ The agent has a `remember` tool taking `kind: "lesson" | "decision"` and one lin
 
 Archives are listable at `GET /api/agent/archives` and `GET /api/agent/:id/archives`.
 
+### Generation bounds
+
+Omitting `max_tokens` leaves LM Studio unbounded, so a prompt asking for output "as long as possible" is answered literally — a measured run was still streaming at 500 s and 88,650 characters with no end in sight, and the turn produced nothing usable.
+
+| Env var | Default | What it does |
+|---|---|---|
+| `EMBER_MAX_TOKENS` | `16384` | Output ceiling per model call. Generous — one fully-written source file can be long — but finite. A reply that hits it is marked `[truncated at the … ceiling]` rather than silently ending |
+| `EMBER_STREAM_IDLE_MS` | `120000` | Abort if no token arrives for this long. Bounds the gap *between* tokens, not the total run, so a legitimately long generation is never cut off for being long |
+
+A stalled stream now raises a specific error naming how much arrived before the stall — CPU-offloaded models are the usual cause, and the message says so.
+
 ## Security posture
 
 The workbench executes model-chosen file writes and shell commands **on your machine, behind approval cards** — read the card, especially for `run_command`. Workspaces are jailed (every model-supplied path is resolved and checked), MCP and write tools never run un-gated outside Auto mode, and session transcripts stay in the gitignored `.sessions/`. Treat Auto mode as what it is: you, pre-approving everything.
