@@ -51,10 +51,32 @@
     </section>
   </aside>
   <div class="chatcol">
-    <div class="sessionbar" id="sessionbar" hidden></div>
+    <div class="runbar" id="sessionbar" hidden></div>
     <section class="chat" id="chat">
       <p class="msg reason">Pick a model and workspace, start a session, and put the local machine to work. Writes and commands stop for your approval — always.</p>
     </section>
+    <div class="modelbar sessionbar">
+      <span class="meta">PRESET</span>
+      <select id="preset"></select>
+      <span class="meta">PERMS</span>
+      <select id="mode" title="ask: approve each write · plan: read-only · auto: skip all approvals">
+        <option value="ask">Ask</option>
+        <option value="plan">Plan · read-only</option>
+        <option value="auto">Auto · skip approvals</option>
+      </select>
+      <span class="meta">CONTEXT</span>
+      <button class="ghost" id="compactBtn" title="summarize older turns into a compact note to free context">Compact</button>
+      <button class="ghost" id="clearBtn" title="archive this conversation and start fresh — keeps the session, model, workspace and approvals">Clear</button>
+      <label class="meta" title="automatically compact when the conversation nears the model's loaded context window" style="display:flex;align-items:center;gap:.3rem;cursor:pointer">
+        <input type="checkbox" id="autoCompact"> auto
+      </label>
+      <span id="presetDesc" style="flex:1;font-family:Inter,sans-serif;font-size:12px;color:var(--mist);line-height:1.4"></span>
+    </div>
+
+    <form class="composer" id="composer">
+      <input id="composer-input" autocomplete="off" placeholder="instruct the agent…" disabled>
+      <button class="ghost primary" type="submit">Send</button>
+    </form>
   </div>
   <aside class="rail">
     <section class="block">
@@ -76,28 +98,7 @@
   </aside>
 </main>
 
-<div class="modelbar sessionbar">
-  <span class="meta">PRESET</span>
-  <select id="preset"></select>
-  <span class="meta">PERMS</span>
-  <select id="mode" title="ask: approve each write · plan: read-only · auto: skip all approvals">
-    <option value="ask">Ask</option>
-    <option value="plan">Plan · read-only</option>
-    <option value="auto">Auto · skip approvals</option>
-  </select>
-  <span class="meta">CONTEXT</span>
-  <button class="ghost" id="compactBtn" title="summarize older turns into a compact note to free context">Compact</button>
-  <button class="ghost" id="clearBtn" title="archive this conversation and start fresh — keeps the session, model, workspace and approvals">Clear</button>
-  <label class="meta" title="automatically compact when the conversation nears the model's loaded context window" style="display:flex;align-items:center;gap:.3rem;cursor:pointer">
-    <input type="checkbox" id="autoCompact"> auto
-  </label>
-  <span id="presetDesc" style="flex:1;font-family:Inter,sans-serif;font-size:12px;color:var(--mist);line-height:1.4"></span>
-</div>
 
-<form class="composer" id="composer">
-  <input id="composer-input" autocomplete="off" placeholder="instruct the agent…" disabled>
-  <button class="ghost primary" type="submit">Send</button>
-</form>
 
 <script src="workbench.js"></script>
 </body>

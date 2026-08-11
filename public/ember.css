@@ -173,24 +173,24 @@ nav .chips { display: flex; gap: 1.4rem; }
 /* Workbench is a fixed-viewport app: header + modelbars + composer stay put,
    only the chat column and the rail scroll. */
 body.benchpage { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-.bench { display: grid; grid-template-columns: 280px 1fr 300px; gap: 2rem; padding: 1.4rem 3rem 0; flex: 1; min-height: 0; overflow: hidden; }
+.bench { display: grid; grid-template-columns: 280px 1fr 300px; gap: 2rem; padding: 1.4rem 3rem 1.1rem; flex: 1; min-height: 0; overflow: hidden; }
 /* The middle bench column: a pinned session bar that never scrolls, above the
    scrolling transcript. The bar used to be the first chat message, which meant
    scrolling back to the top to remember which workspace you were writing to. */
 .chatcol { display: flex; flex-direction: column; min-height: 0; gap: .8rem; }
-.sessionbar {
+.runbar {
   flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem;
   padding: .55rem .8rem; border: 1px solid #262626; border-radius: 4px;
   background: #121212; font-family: 'Space Mono', monospace; font-size: .68rem;
   letter-spacing: .04em; color: #8c8c8c;
 }
-.sessionbar b { color: #f5f5f5; font-weight: 400; }
-.sessionbar .sb-ws { color: #bcbcbc; overflow-wrap: anywhere; }
-.sessionbar .sb-sep { color: #3a3a3a; }
-.sessionbar .sb-perm { padding: .1rem .4rem; border-radius: 3px; border: 1px solid currentColor; }
-.sessionbar .sb-perm.ask  { color: #8c8c8c; }
-.sessionbar .sb-perm.plan { color: #bcbcbc; }
-.sessionbar .sb-perm.auto { color: #e29a2e; }   /* auto skips every gate — make it loud */
+.runbar b { color: #f5f5f5; font-weight: 400; }
+.runbar .sb-ws { color: #bcbcbc; overflow-wrap: anywhere; }
+.runbar .sb-sep { color: #3a3a3a; }
+.runbar .sb-perm { padding: .1rem .4rem; border-radius: 3px; border: 1px solid currentColor; }
+.runbar .sb-perm.ask  { color: #8c8c8c; }
+.runbar .sb-perm.plan { color: #bcbcbc; }
+.runbar .sb-perm.auto { color: #e29a2e; }   /* auto skips every gate — make it loud */
 .chat { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1.4rem; overflow-y: auto; min-height: 0; padding-right: .6rem; padding-bottom: 1rem; }
 .bench .rail { overflow-y: auto; min-height: 0; padding-bottom: 1rem; }
 .msg { max-width: 82%; padding: .9rem 1.2rem; font-size: 14px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -220,6 +220,16 @@ body.benchpage { height: 100vh; display: flex; flex-direction: column; overflow:
 .composer { padding: .9rem 3rem 1.1rem; background: var(--void); display: flex; gap: 1rem; z-index: 3; }
 .composer input { flex: 1; background: transparent; border: none; border-bottom: 1px solid var(--mist); color: var(--aura); font-family: "Space Mono", monospace; font-size: 13px; padding: .6rem .2rem; outline: none; }
 .composer input:focus { border-bottom-color: var(--ember); }
+
+/* Controls and composer live INSIDE the chat column, not as full-width bars
+   under the grid: the preset, permission mode and Send box belong to the
+   conversation, and at 3-column width a bar spanning the rails put them
+   nowhere near the text they act on. Strip the page gutters they carried when
+   they were page-level, and let only .chat take the leftover height. */
+.chatcol > .modelbar { margin: 0; flex: 0 0 auto; }
+.chatcol > .composer { padding: .8rem 0 0; flex: 0 0 auto; }
+.chatcol > .sessionbar { margin-top: 0; }
+.chatcol > .runbar { flex: 0 0 auto; }
 .caret { display: inline-block; width: 8px; height: 15px; background: var(--ember); animation: blink 1s steps(1) infinite; vertical-align: text-bottom; }
 @keyframes blink { 50% { opacity: 0 } }
 
