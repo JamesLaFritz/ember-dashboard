@@ -2,7 +2,7 @@
 // Claude-Code-style approval cards, switchable sessions, and live LM status.
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const state = { session: null, streamEl: null, presets: [], tools: [], allow: [], mcp: [], info: null };
+const state = { session: null, streamEl: null, presets: [], tools: [], allow: [], mcp: [], info: null, thinkDismissed: false };
 
 init();
 async function init() {
@@ -34,6 +34,7 @@ async function init() {
   $('compactBtn').onclick = compactNow;
   $('clearBtn').onclick = clearNow;
   $('autoCompact').onchange = toggleAutoCompact;
+  $('thinkpinClose').onclick = closeThinkPin;
   $('composer').addEventListener('submit', (e) => { e.preventDefault(); send(); });
 }
 
@@ -303,14 +304,17 @@ async function switchSession(id) {
   $('chat').innerHTML = '';
   state.info = { preset: h.preset, workspace: h.workspace, model: h.model, mode: h.mode ?? 'ask' };
   renderSessionBar();
+  resetThinkPin();
+  let lastThink = '';   // reopening a session should pin its newest reasoning
   for (const e of h.history ?? []) {
     if (e.kind === 'user') addMsg('user', e.text);
     else if (e.kind === 'assistant') addAssistant(e.text);
-    else if (e.kind === 'reasoning') addReasoning(e.text);
+    else if (e.kind === 'reasoning') { addReasoning(e.text); lastThink = e.text; }
     else if (e.kind === 'compacted') addMsg('reason', `— context compacted (${e.reason}, ${e.folded} turn${e.folded === 1 ? '' : 's'} folded) —`);
     else if (e.kind === 'tool') toolCard(e.tool, e.args);
     else if (e.kind === 'approval') toolCard(e.tool, `${e.args} → ${e.decision.toUpperCase()}`);
   }
+  if (lastThink) updateThinkPin(lastThink, false);
   state.allow = h.allowlist ?? [];
   state.mcp = h.mcpServers ?? [];
   renderTools();
@@ -375,7 +379,7 @@ function connectWS() {
     if (evt.session && evt.session !== state.session) { if (evt.type === 'agent_approval') refreshSessions(); return; }
     if (evt.type === 'agent_delta' || evt.type === 'agent_reasoning') {
       hideThinking();
-      if (!state.streamEl) { state.streamEl = addMsg('assistant', ''); }
+      if (!state.streamEl) { state.streamEl = addMsg('assistant', ''); resetThinkPin(); }
       const key = evt.type === 'agent_reasoning' ? 'think' : 'raw';
       state.streamEl.dataset[key] = (state.streamEl.dataset[key] ?? '') + evt.text;
       renderStream();
@@ -388,6 +392,7 @@ function connectWS() {
     }
     if (evt.type === 'agent_done') {
       hideThinking();
+      $('thinkpinLive').hidden = true;
       if (state.streamEl) {
         if (evt.text) state.streamEl.dataset.raw = evt.text;
         finishStream();
@@ -401,6 +406,35 @@ function connectWS() {
 }
 function finishStream() {
   if (state.streamEl) { renderStream(true); state.streamEl = null; }
+}
+
+// ---------- pinned reasoning ----------
+// A <details> inside the transcript scrolls away exactly when the model is
+// mid-thought. This mirrors the newest reasoning above the chat, bounded and
+// scrollable so it can never push the conversation off screen.
+function updateThinkPin(text, live) {
+  if (state.thinkDismissed || !text) return;
+  const body = $('thinkpinBody');
+  // Only autoscroll when already at the bottom, so scrolling back to read
+  // something is not yanked away by the next delta.
+  const atEnd = body.scrollHeight - body.scrollTop - body.clientHeight < 24;
+  body.textContent = text;
+  $('thinkpinLive').hidden = !live;
+  $('thinkpinMeta').textContent = `${text.length.toLocaleString()} chars`;
+  $('thinkpin').hidden = false;
+  if (atEnd) body.scrollTop = body.scrollHeight;
+}
+function closeThinkPin() {
+  state.thinkDismissed = true;
+  $('thinkpin').hidden = true;
+}
+// Dismissal covers the block you closed, not the feature: the next turn that
+// reasons brings it back, so closing it once cannot silently disable it.
+function resetThinkPin() {
+  state.thinkDismissed = false;
+  $('thinkpinBody').textContent = '';
+  $('thinkpinMeta').textContent = '';
+  $('thinkpin').hidden = true;
 }
 
 // ---------- reasoning rendering ----------
@@ -434,6 +468,7 @@ function renderStream(final = false) {
   const extra = (el.dataset.think ?? '').trim();
   const think = extra && p.think ? `${extra}\n${p.think}` : extra || p.think;
   const stillThinking = !final && (p.streaming || (think && !p.answer));
+  updateThinkPin(think, stillThinking);
   el.innerHTML = thinkHTML(think, stillThinking)
     + `<span class="answer">${esc(p.answer)}${final ? '' : '<span class="caret"></span>'}</span>`;
 }
