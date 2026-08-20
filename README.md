@@ -134,8 +134,35 @@ Omitting `max_tokens` leaves LM Studio unbounded, so a prompt asking for output 
 |---|---|---|
 | `EMBER_MAX_TOKENS` | `16384` | Output ceiling per model call. Generous — one fully-written source file can be long — but finite. A reply that hits it is marked `[truncated at the … ceiling]` rather than silently ending |
 | `EMBER_STREAM_IDLE_MS` | `120000` | Abort if no token arrives for this long. Bounds the gap *between* tokens, not the total run, so a legitimately long generation is never cut off for being long |
+| `EMBER_MAX_AUTO_CONTINUE` | `3` | How many times a truncated reply is resumed automatically. `0` restores the manual "type continue yourself" behaviour |
 
 A stalled stream now raises a specific error naming how much arrived before the stall — CPU-offloaded models are the usual cause, and the message says so.
+
+Hitting the ceiling is a **harness event, not a model decision** — Codex and Claude Code both continue across a truncation on their own, so making the operator type `continue` turned a local run's continue-count into a measurement of a protocol the other harnesses never participate in. The workbench now resumes on its own, bounded and recorded: each resume appears in the transcript as an `auto-continue` card and in the run report as a counted `autocontinue` event. Exhausting the budget is recorded as a `bail`, the same way the hop ceiling is.
+
+### Running commands
+
+`run_command` is deliberately unlike a plain `spawn`, because three of the defaults each cost a mis-scored benchmark run:
+
+- **stdin is closed.** The default stdio pipe never reaches EOF, so anything that reads stdin — `npm init`, an npx *"Ok to proceed? (y)"*, a git credential prompt — blocked for the entire command timeout and reported as a hang. Measured: 8 s+ and killed, versus 24 ms with stdin at EOF. `CI=1` is also set, which makes most JS tooling skip prompts and spinners.
+- **Resolution is on process exit, not stdio close.** `close` waits for every inherited pipe to drain, and a grandchild that survives the kill — a dev server, a watcher — holds those pipes open. Measured with a surviving grandchild: exit at 4.0 s, close at 25.1 s; with a foreground dev server, `close` never fires at all and the tool call parks forever, past its own timeout.
+- **Timeouts kill the whole process tree** (`taskkill /T` on Windows, the process group elsewhere). Killing the shell does not kill what the shell started, and orphans accumulate across a long run holding ports.
+
+Output is capped while it accumulates, not only when it is returned, so a runaway command cannot exhaust server memory before there is anything to clip. Both the live cap and the final clip drop from the head — build errors land at the tail.
+
+### Run reports
+
+`GET /api/agent/:id/report` returns a generated markdown record of a session: model key verbatim, shell, loaded context length, compaction threshold, every ceiling in force, hops used, tokens in/out, auto-continues, compaction table, and whether the run ended on a **harness bail** (which is the difference between "the model stopped" and "we stopped it"). Add `?download=1` for a `RUN.md` attachment.
+
+It exists because these fields were previously copied by hand, and hand-copying had already put three wrong model keys into run records — two of them identical with the `@quant` suffix dropped, which would have silently benchmarked the same model twice.
+
+### Tests
+
+```
+npm test
+```
+
+Node's built-in runner, no dependencies, ~6 s. Each test corresponds to a fault found in production that produced behaviour indistinguishable from *"the local model gave up"*: shell resolution, tail-preserving output clipping, the three `run_command` properties above, the verification and dependency rules actually reaching the composed prompt, the generation/hop bounds a run report cites, and auto-continue stitching and bounding. A benchmark result is a measurement of the harness until the harness is proven — this is the proof, and it is cheap enough to run before every session.
 
 ## Security posture
 

@@ -189,6 +189,19 @@ app.post('/api/agent/:id/clear', (req, res) => {
     res.json(r);
   } catch (err) { res.status(409).json({ error: String(err.message ?? err) }); }
 });
+// Benchmark run record, generated from the session rather than transcribed by
+// hand. `?download=1` returns it as a RUN.md attachment.
+app.get('/api/agent/:id/report', (req, res) => {
+  const s = agents.get(req.params.id);
+  if (!s) return res.status(404).json({ error: 'no such session' });
+  const md = s.report();
+  if (req.query.download) {
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="RUN-${s.id}.md"`);
+    return res.send(md);
+  }
+  res.json({ id: s.id, model: s.model, markdown: md });
+});
 app.get('/api/agent/:id/archives', (req, res) => res.json({ archives: agents.archives(req.params.id) }));
 app.get('/api/agent/archives', (_req, res) => res.json({ archives: agents.archives() }));
 app.post('/api/agent/:id/mode', (req, res) => {
