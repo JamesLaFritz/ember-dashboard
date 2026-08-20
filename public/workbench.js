@@ -2,36 +2,44 @@
 // Claude-Code-style approval cards, switchable sessions, and live LM status.
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const state = { session: null, streamEl: null, presets: [], tools: [], allow: [], mcp: [], info: null, thinkDismissed: false };
+const state = {
+  session: null, streamEl: null, presets: [], tools: [], allow: [], mcp: [], info: null,
+  thinkDismissed: false,
+  workspaces: [],       // managed list; a session binds one at creation
+  models: [],           // last LM Studio inventory, loaded-first
+  identityDefault: true, // what a new session starts with
+};
 
 init();
 async function init() {
   const cfg = await (await fetch('/api/config')).json();
   state.presets = cfg.presets;
   state.tools = cfg.tools;
+  state.identityDefault = cfg.identityDefault !== false;
   renderWorkspaces(cfg.workspaces);
-  $('preset').innerHTML = cfg.presets.map(p => `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('');
+  const presetOpts = cfg.presets.map(p => `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('');
+  $('preset').innerHTML = presetOpts;
+  $('dlgPreset').innerHTML = presetOpts;
   $('preset').onchange = changePreset;
-  // Until a session is selected the box shows what a NEW one would start with.
-  $('identity').checked = cfg.identityDefault !== false;
+  $('identity').checked = state.identityDefault;
   showPresetDesc();
   renderTools();
   renderAllow();
   renderSkills();
   renderMcp();
-  $('workspace').onchange = () => renderSkills();
   await refreshModels();
   const sessions = await refreshSessions();
   // Sessions survive server restarts now — reopen where you left off.
   if (sessions.length) await switchSession(sessions[0].id);
   setInterval(refreshModels, 30_000);
   connectWS();
-  $('newSession').onclick = newSession;
+  $('newSession').onclick = openNewSession;
+  $('dlgCancel').onclick = () => $('newSessionDlg').close();
+  $('dlgWsAdd').onclick = () => addWorkspace('dlgWorkspace');
+  $('newSessionForm').addEventListener('submit', (e) => { e.preventDefault(); createSession(); });
   $('sessionPicker').onchange = () => switchSession($('sessionPicker').value);
-  $('loadBtn').onclick = () => lmAction('load');
-  $('unloadBtn').onclick = () => lmAction('unload');
-  $('wsAdd').onclick = addWorkspace;
-  $('wsRemove').onclick = removeWorkspace;
+  $('loadBtn').onclick = () => lmAction('load', $('model').value);
+  $('wsAdd').onclick = () => addWorkspace();
   $('mode').onchange = changeMode;
   $('compactBtn').onclick = compactNow;
   $('clearBtn').onclick = clearNow;
@@ -42,21 +50,48 @@ async function init() {
 }
 
 // ---------- workspaces ----------
+// Management only. Nothing here "selects" a workspace: a session binds one when
+// it is created and keeps it for life, so a global current-workspace would be a
+// value that silently fails to apply to the thing in front of you.
 function renderWorkspaces(list, select) {
-  $('workspace').innerHTML = list.map(w => `<option ${w === select ? 'selected' : ''}>${esc(w)}</option>`).join('');
+  state.workspaces = list ?? [];
+  $('wsCount').textContent = `(${state.workspaces.length})`;
+  const inUse = new Set((refreshSessions.last ?? []).map(s => s.workspace));
+  $('workspaces').innerHTML = state.workspaces.length
+    ? state.workspaces.map(w => `<div class="wsrow">
+        <span class="wspath ${inUse.has(w) ? 'in-use' : ''}" title="${esc(w)}${inUse.has(w) ? ' — in use by a session' : ''}">${esc(w)}</span>
+        <button class="x" data-ws="${esc(w)}" title="remove from the list (the folder itself is untouched)">✕</button></div>`).join('')
+    : '<span class="meta">none</span>';
+  // The dialog picks from the same list; keep the caller's choice selected.
+  const want = select ?? $('dlgWorkspace').value;
+  $('dlgWorkspace').innerHTML = state.workspaces.map(w =>
+    `<option ${w === want ? 'selected' : ''}>${esc(w)}</option>`).join('');
 }
-async function addWorkspace() {
+$('workspaces').addEventListener('click', (e) => {
+  const w = e.target.dataset?.ws;
+  if (w) removeWorkspace(w);
+});
+
+// `target` is the id of a select to point at the new workspace, if any.
+async function addWorkspace(target) {
   const p = prompt('Folder to add as a workspace (absolute path):');
   if (!p?.trim()) return;
   const res = await (await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: p.trim() }) })).json();
   if (res.error) return addMsg('reason', `Workspace error: ${res.error}`);
-  renderWorkspaces(res.workspaces, res.workspaces[res.workspaces.length - 1]);
-  renderSkills();
-  addMsg('reason', `Workspace added: ${res.workspaces[res.workspaces.length - 1]}`);
+  const added = res.workspaces[res.workspaces.length - 1];
+  renderWorkspaces(res.workspaces, added);
+  if (target) $(target).value = added;
+  addMsg('reason', `Workspace added: ${added}`);
 }
-async function removeWorkspace() {
-  const w = $('workspace').value;
-  if (!w || !confirm(`Remove workspace from the list?\n${w}\n(The folder itself is untouched.)`)) return;
+async function removeWorkspace(w) {
+  // Sessions store an absolute path. Removing a workspace out from under one
+  // does not break the session, but it does mean the path can no longer be
+  // picked — and New Session validates against this list, so say so first.
+  const users = (refreshSessions.last ?? []).filter(s => s.workspace === w);
+  const warn = users.length
+    ? `\n\n⚠️ ${users.length} session(s) use this workspace (${users.map(s => s.id).join(', ')}). They keep working, but you will not be able to create new ones here.`
+    : '';
+  if (!confirm(`Remove workspace from the list?\n${w}\n(The folder itself is untouched.)${warn}`)) return;
   const res = await (await fetch('/api/workspaces/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: w }) })).json();
   if (res.error) return addMsg('reason', `Workspace error: ${res.error}`);
   renderWorkspaces(res.workspaces);
@@ -170,11 +205,13 @@ $('allowlist').addEventListener('click', async (e) => {
 });
 
 // Skills the agent can load with use_skill — read from the workspace's
-// .claude/skills. Follows the active session's workspace when one is open,
-// otherwise the workspace selector. Click a skill to prefill the composer.
+// .claude/skills, plus user-level ~/.claude/skills. Follows the ACTIVE
+// SESSION's workspace: there is no global workspace any more, and showing
+// skills for a workspace no session is using would be showing what the agent
+// in front of you cannot reach. Click a skill to prefill the composer.
 async function renderSkills(workspace) {
-  const ws = workspace ?? $('workspace').value;
-  if (!ws) return $('skills').innerHTML = '<span class="meta">—</span>';
+  const ws = workspace ?? state.info?.workspace;
+  if (!ws) return $('skills').innerHTML = '<span class="meta">— open a session</span>';
   const res = await (await fetch(`/api/skills/library?workspace=${encodeURIComponent(ws)}`)).json();
   const list = res.skills ?? [];
   $('skills').innerHTML = list.length
@@ -229,25 +266,50 @@ async function refreshModels() {
   // Card-level used/total — with one loaded model this is model weights + KV
   // cache (LM Studio's APIs don't report per-model VRAM).
   const gpuRow = gpu.ok
-    ? `<div class="row"><span class="when gold">GPU</span><span class="mono">${(gpu.usedMB / 1024).toFixed(1)} / ${(gpu.totalMB / 1024).toFixed(1)} GB<br><span class="meta">${esc(gpu.name)}</span></span></div>`
+    ? `<span>GPU <span class="lm-model">${(gpu.usedMB / 1024).toFixed(1)} / ${(gpu.totalMB / 1024).toFixed(1)} GB</span> ${esc(gpu.name)}</span>`
     : '';
   $('chip-lm').classList.toggle('on', !!res.ok);
   if (!res.ok) {
+    state.models = [];
     $('model').innerHTML = '<option>LM Studio offline</option>';
-    $('lmstatus').innerHTML = gpuRow + `<span class="meta">offline — run: lms server start</span>`;
+    $('dlgModel').innerHTML = '<option>LM Studio offline</option>';
+    $('lmstatus').innerHTML = gpuRow + '<span class="meta">offline — run: lms server start</span>';
     return;
   }
   const llms = res.models.filter(m => m.type === 'llm');
-  const current = $('model').value;
   const labels = disambiguateModelLabels(llms);
-  $('model').innerHTML = llms.map((m, i) =>
-    `<option value="${esc(m.key)}" title="${esc(m.key)}" ${m.key === current ? 'selected' : ''}>${esc(labels[i])}${m.loaded ? ' ●' : ''}</option>`).join('');
-  const loaded = llms.filter(m => m.loaded);
-  $('lmstatus').innerHTML = gpuRow + (loaded.length
-    ? loaded.map(m => `<div class="row"><span class="when gold">●</span><span class="mono">${esc(m.name)}<br>
-        <span class="meta">${esc(m.quant ?? '?')} · ${m.sizeGB ?? '?'}GB file · ctx ${fmtK(m.contextLength)} / ${fmtK(m.maxContextLength)} · ${esc(m.arch ?? '')}</span></span></div>`).join('')
-    : '<span class="meta">server up · no model loaded</span>');
+  // Loaded models first, in both pickers: those are the ones that will answer
+  // immediately, and everything else costs a load before the first token.
+  state.models = llms
+    .map((m, i) => ({ ...m, label: labels[i] }))
+    .sort((a, b) => (b.loaded === true) - (a.loaded === true) || a.label.localeCompare(b.label));
+  fillModelSelect('model');
+  fillModelSelect('dlgModel');
+
+  const loaded = state.models.filter(m => m.loaded);
+  // Loaded models live here, next to the runtime indicator, each with its own
+  // unload — the status list knows WHICH instance it is acting on, which a
+  // dropdown-plus-button never did.
+  $('lmstatus').innerHTML = [
+    gpuRow,
+    ...(loaded.length
+      ? loaded.map(m => `<span title="${esc(m.key)}"><span class="lm-model">● ${esc(m.name)}</span>
+          ${esc(m.quant ?? '?')} · ${m.sizeGB ?? '?'}GB · ctx ${fmtK(m.contextLength)}/${fmtK(m.maxContextLength)}<button
+          class="x" data-unload="${esc(m.key)}" title="unload ${esc(m.key)}">✕</button></span>`)
+      : ['<span class="meta">server up · no model loaded</span>']),
+  ].filter(Boolean).join('<span class="lm-sep">·</span>');
 }
+// Preserves the current choice across a refresh; falls back to the first entry
+// (which is a loaded model whenever one exists).
+function fillModelSelect(id) {
+  const current = $(id).value;
+  $(id).innerHTML = state.models.map(m =>
+    `<option value="${esc(m.key)}" title="${esc(m.key)}" ${m.key === current ? 'selected' : ''}>${esc(m.label)}${m.loaded ? ' ●' : ''}</option>`).join('');
+}
+$('lmstatus').addEventListener('click', (e) => {
+  const key = e.target.dataset?.unload;
+  if (key) lmAction('unload', key);
+});
 // LM Studio's own "name" metadata is not guaranteed unique — several
 // finetunes of the same base model (or different quants of the same
 // finetune) can share an identical display name. Disambiguate in tiers:
@@ -275,12 +337,17 @@ const statLine = (s) => s && (s.in || s.out || s.tps)
   ? `${s.tps ? s.tps + ' tok/s · ' : ''}in ${fmtTok(s.in ?? 0)} · out ${fmtTok(s.out ?? s.tokens ?? 0)}`
   : '';
 
-async function lmAction(kind) {
-  const model = $('model').value;
+// Machine-level, never session-level: loading or unloading a model does not
+// change what any running session is bound to.
+async function lmAction(kind, model) {
+  if (!model) return;
+  const users = (refreshSessions.last ?? []).filter(s => s.model === model);
+  if (kind === 'unload' && users.some(s => s.busy)
+    && !confirm(`${model} is mid-turn in session ${users.find(s => s.busy).id}. Unload anyway?\nThe turn will fail.`)) return;
   addMsg('reason', `${kind}ing ${model}…`);
-  await fetch(`/api/lm/${kind}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model }) });
+  const res = await (await fetch(`/api/lm/${kind}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model }) })).json();
   await refreshModels();
-  addMsg('reason', `${model} ${kind} complete.`);
+  addMsg('reason', res?.error ? `${model} ${kind} failed: ${res.error}` : `${model} ${kind} complete.`);
 }
 
 // ---------- sessions ----------
@@ -288,6 +355,9 @@ async function refreshSessions(selectId) {
   const res = await (await fetch('/api/agent/sessions')).json();
   const list = res.sessions ?? [];
   refreshSessions.last = list;
+  // Which workspaces are spoken for is derived from the sessions, so the rail
+  // has to be redrawn when they change — not only when the list itself does.
+  if (state.workspaces.length) renderWorkspaces(state.workspaces);
   $('sessionPicker').innerHTML = '<option value="">— none —</option>' + list.map(s =>
     `<option value="${s.id}" ${s.id === (selectId ?? state.session) ? 'selected' : ''}>${s.id} · ${esc(s.title)}</option>`).join('');
   $('sessions').innerHTML = list.length
@@ -311,7 +381,7 @@ $('sessions').addEventListener('click', async (e) => {
       state.allow = [];
       state.mcp = [];
       renderTools(); renderAllow(); renderMcp();
-      state.info = null; renderSessionBar();
+      state.info = null; renderSessionBar(); renderSkills();
       addMsg('reason', `Session ${del} deleted.`);
     }
     return refreshSessions();
@@ -355,12 +425,49 @@ async function switchSession(id) {
   await refreshSessions(id);
 }
 
-async function newSession() {
+// Workspace and model are bound for the life of the session, so they are chosen
+// here and nowhere else. Preset, perms and identity are seeded here too but stay
+// changeable in the footer, because all three are legitimately toggled mid-work.
+function openNewSession() {
+  if (!state.workspaces.length) {
+    addMsg('reason', 'No workspaces configured — add one first (Workspaces rail).');
+    $('wsFold').open = true;
+    return;
+  }
+  // Seed from the open session: the usual next action is another session much
+  // like this one, not one built from page defaults.
+  const i = state.info;
+  if (i?.workspace && state.workspaces.includes(i.workspace)) $('dlgWorkspace').value = i.workspace;
+  if (i?.model && state.models.some(m => m.key === i.model)) $('dlgModel').value = i.model;
+  $('dlgPreset').value = i?.preset ?? $('preset').value;
+  $('dlgMode').value = i?.mode ?? 'ask';
+  $('dlgIdentity').checked = i ? i.identity !== false : state.identityDefault;
+  updateDlgNote();
+  $('dlgModel').onchange = updateDlgNote;
+  $('newSessionDlg').showModal();
+}
+function updateDlgNote() {
+  const m = state.models.find(x => x.key === $('dlgModel').value);
+  $('dlgNote').textContent = !m ? ''
+    : m.loaded ? `${m.key} is loaded — ctx ${fmtK(m.contextLength)}.`
+    : `${m.key} is not loaded. LM Studio will load it on the first message.`;
+}
+
+async function createSession() {
+  const picked = {
+    model: $('dlgModel').value, workspace: $('dlgWorkspace').value,
+    preset: $('dlgPreset').value, mode: $('dlgMode').value, identity: $('dlgIdentity').checked,
+  };
   const res = await (await fetch('/api/agent/session', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: $('model').value, workspace: $('workspace').value, preset: $('preset').value, mode: $('mode').value, identity: $('identity').checked }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(picked),
   })).json();
   if (res.error) return addMsg('reason', `Session error: ${res.error}`);
+  $('newSessionDlg').close();
+  // The footer controls act on the open session, so they follow it.
+  $('preset').value = picked.preset;
+  $('mode').value = picked.mode;
+  $('identity').checked = picked.identity;
+  showPresetDesc();
   state.session = res.session;
   $('composer-input').disabled = false;
   $('chat').innerHTML = '';
@@ -370,8 +477,9 @@ async function newSession() {
   renderTools();
   renderAllow();
   renderMcp();
-  state.info = { preset: $('preset').value, workspace: $('workspace').value, model: $('model').value, mode: $('mode').value, identity: $('identity').checked };
+  state.info = { ...picked };
   renderSessionBar();
+  renderSkills(picked.workspace);
   await refreshSessions(res.session);
 }
 
@@ -565,8 +673,8 @@ function renderSessionBar() {
   const raw = String(i.mode ?? 'ask').toLowerCase();
   const mode = ['ask', 'plan', 'auto'].includes(raw) ? raw : 'ask';
   const sep = '<span class="sb-sep">·</span>';
+  // No session id here — the picker to the left of this line already names it.
   bar.innerHTML = [
-    `<span>SESSION <b>${esc(state.session)}</b></span>`,
     `<span>${esc(i.preset ?? '—')}</span>`,
     `<span>MODEL <b>${esc(i.model ?? '—')}</b></span>`,
     `<span class="sb-ws">${esc(i.workspace ?? '—')}</span>`,

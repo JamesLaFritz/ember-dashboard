@@ -206,18 +206,28 @@ body.benchpage { height: 100vh; display: flex; flex-direction: column; overflow:
 /* The middle bench column. */
 .chatcol { display: flex; flex-direction: column; min-height: 0; gap: .8rem; }
 
-/* Session identity lives in the top bar, between the session picker and the
-   throughput readout — the row that already says which model and workspace you
-   picked. It was a boxed bar above the transcript; inline here it needs no
-   border or background of its own, only the separators. */
-.modelbar .runbar {
+/* The chat column's own header: which session, and what that session is bound
+   to. It sits here rather than in a global bar because the binding is per
+   session — a page-level model selector that cannot change the running
+   session's model is exactly the confusion this replaced. */
+.chathead {
+  display: flex; align-items: center; gap: .6rem 1rem; flex-wrap: wrap;
+  flex: 0 0 auto; padding: .5rem .7rem;
+  background: var(--charcoal); border-radius: 3px;
+}
+.chathead select {
+  background: var(--void); color: var(--aura); border: none; border-bottom: 1px solid #333;
+  font-family: "Space Mono", monospace; font-size: 12px; padding: .35rem .5rem;
+  outline: none; max-width: 260px;
+}
+.runbar {
   display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .55rem;
   min-width: 0; font-family: 'Space Mono', monospace; font-size: .68rem;
   letter-spacing: .04em; color: #8c8c8c;
 }
 /* An author display rule beats the UA [hidden] rule, so say it explicitly —
    otherwise an empty bar shows before any session exists. */
-.modelbar .runbar[hidden] { display: none; }
+.runbar[hidden] { display: none; }
 .runbar b { color: #f5f5f5; font-weight: 400; }
 .runbar .sb-ws { color: #bcbcbc; overflow-wrap: anywhere; }
 .runbar .sb-sep { color: #3a3a3a; }
@@ -232,7 +242,62 @@ body.benchpage { height: 100vh; display: flex; flex-direction: column; overflow:
 .runbar .sb-soul.off { color: #8c8c8c; }
 
 /* keep the throughput readout hard right, after the session line */
-.modelbar #tps { margin-left: auto; white-space: nowrap; }
+.chathead #tps { margin-left: auto; white-space: nowrap; }
+
+/* ---- left rail: model / workspaces / sessions ---- */
+.modelpick { display: flex; gap: .6rem; align-items: center; }
+.modelpick select {
+  flex: 1; min-width: 0;
+  background: var(--void); color: var(--aura); border: none; border-bottom: 1px solid #333;
+  font-family: "Space Mono", monospace; font-size: 12px; padding: .35rem .5rem; outline: none;
+}
+.block-btn { width: 100%; margin-bottom: 1rem; }
+/* Workspaces are managed, not selected — a session binds its workspace at
+   creation — so the list stays folded until you need to add or remove one. */
+#wsFold > summary { cursor: pointer; list-style: none; margin-bottom: 1rem; }
+#wsFold > summary::-webkit-details-marker { display: none; }
+#wsFold > summary::before { content: '▸ '; color: var(--ember); }
+#wsFold[open] > summary::before { content: '▾ '; }
+#wsFold .ghost { margin-top: .8rem; }
+.wsrow { display: flex; gap: .5rem; align-items: flex-start; font-family: "Space Mono", monospace; font-size: 11.5px; }
+.wsrow .wspath { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--mist); }
+.wsrow .in-use { color: var(--ember); }
+
+/* LM Studio status, in the header with the runtime indicator. */
+.lmbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .9rem;
+  font-family: "Space Mono", monospace; font-size: 11px; color: var(--mist);
+  max-width: 60vw;
+}
+.lmbar .lm-model { color: var(--aura); }
+.lmbar .lm-sep { color: #3a3a3a; }
+.lmbar .x { margin-left: .3rem; }
+
+/* ---- dialog ---- */
+/* body.benchpage is a flex column, and a <dialog> is one of its children — so
+   align-items: stretch sizes it to the column instead of to its content, and it
+   lands at the left edge full height. Pin it to the viewport and centre it
+   explicitly rather than relying on the UA's margin:auto. */
+.dlg {
+  position: fixed; inset: 0; margin: auto;
+  width: fit-content; max-width: 92vw;
+  height: fit-content; max-height: 90vh; overflow-y: auto;
+  border: 1px solid #262626; border-top: 2px solid var(--ember);
+  background: var(--charcoal); color: var(--text);
+  padding: 1.6rem 1.8rem; min-width: min(420px, 92vw); border-radius: 3px;
+}
+.dlg::backdrop { background: rgba(0, 0, 0, .72); }
+.dlg h3 { font-family: "Playfair Display", serif; font-size: 1.3rem; margin-bottom: 1.2rem; color: var(--aura); }
+.dlg-row { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; }
+.dlg-row > .meta { letter-spacing: .12em; }
+.dlg-inline { display: flex; gap: .5rem; align-items: center; }
+.dlg select {
+  width: 100%; background: var(--void); color: var(--aura); border: none; border-bottom: 1px solid #333;
+  font-family: "Space Mono", monospace; font-size: 12px; padding: .4rem .5rem; outline: none;
+}
+.dlg .dlg-inline select { flex: 1; min-width: 0; }
+.dlg-note { margin: .2rem 0 1rem; line-height: 1.5; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 1.2rem; margin-top: .4rem; }
 
 .chat { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1.4rem; overflow-y: auto; min-height: 0; padding-right: .6rem; padding-bottom: 1rem; }
 .bench .rail { overflow-y: auto; min-height: 0; padding-bottom: 1rem; }
