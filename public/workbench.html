@@ -104,6 +104,10 @@
   <label class="meta" title="automatically compact when the conversation nears the model's loaded context window" style="display:flex;align-items:center;gap:.3rem;cursor:pointer">
     <input type="checkbox" id="autoCompact"> auto
   </label>
+  <span class="meta">IDENTITY</span>
+  <label class="meta" id="identityLabel" title="inject SOUL.md and USER.md into the system prompt. Turn OFF for benchmarking — an identity file is part of the prompt, so comparing models under different identities compares prompts, not models" style="display:flex;align-items:center;gap:.3rem;cursor:pointer">
+    <input type="checkbox" id="identity"> soul
+  </label>
   <span id="presetDesc" style="flex:1;font-family:Inter,sans-serif;font-size:12px;color:var(--mist);line-height:1.4"></span>
   </div>
 

@@ -12,6 +12,8 @@ async function init() {
   renderWorkspaces(cfg.workspaces);
   $('preset').innerHTML = cfg.presets.map(p => `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('');
   $('preset').onchange = changePreset;
+  // Until a session is selected the box shows what a NEW one would start with.
+  $('identity').checked = cfg.identityDefault !== false;
   showPresetDesc();
   renderTools();
   renderAllow();
@@ -34,6 +36,7 @@ async function init() {
   $('compactBtn').onclick = compactNow;
   $('clearBtn').onclick = clearNow;
   $('autoCompact').onchange = toggleAutoCompact;
+  $('identity').onchange = toggleIdentity;
   $('thinkpinClose').onclick = closeThinkPin;
   $('composer').addEventListener('submit', (e) => { e.preventDefault(); send(); });
 }
@@ -89,6 +92,33 @@ async function toggleAutoCompact() {
   const res = await (await fetch(`/api/agent/${state.session}/autocompact`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: $('autoCompact').checked }) })).json();
   if (res.error) return addMsg('reason', `Auto-compact error: ${res.error}`);
   addMsg('reason', `Auto-compact ${res.autoCompact ? 'on — the agent will summarize old turns as the context fills' : 'off'}.`);
+}
+
+// SOUL/USER in the system prompt, per session. Off is the correct setting for
+// any comparison run: an identity file is part of the prompt, so two models
+// under different identities are two prompts, not two models.
+async function toggleIdentity() {
+  if (!state.session) { renderSessionBar(); return; }   // pre-session: just the default for the next one
+  const on = $('identity').checked;
+  const res = await (await fetch(`/api/agent/${state.session}/identity`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on }),
+  })).json();
+  if (res.error) {                       // mid-turn, or no such session — put the box back
+    $('identity').checked = !on;
+    return addMsg('reason', `Identity: ${res.error}`);
+  }
+  state.info = { ...(state.info ?? {}), identity: res.identity };
+  renderSessionBar();
+  const files = Object.entries(res.sources ?? {}).filter(([, v]) => v && v !== 'off').map(([k, v]) => `${k}: ${v}`).join(' · ');
+  const said = res.identity
+    ? `Identity ON — ${files || 'no SOUL/USER file found, so nothing was injected'}. Not a comparison-safe setting.`
+    : 'Identity OFF — role instructions only. This is the correct setting for a benchmark run.';
+  // Flipping mid-conversation is allowed but not free: the turns already in the
+  // transcript were produced under the other system prompt.
+  const warn = res.turnsSoFar
+    ? ` ⚠️ ${res.turnsSoFar} turn(s) already ran under the previous setting — this transcript now spans two prompts. Clear the session for a clean run.`
+    : '';
+  addMsg('reason', said + warn);
 }
 
 async function changePreset() {
@@ -299,10 +329,11 @@ async function switchSession(id) {
   $('tps').textContent = statLine(h.stats);
   $('mode').value = h.mode ?? 'ask';
   $('autoCompact').checked = h.autoCompact !== false;
+  $('identity').checked = h.identity !== false;
   if ([...$('preset').options].some(o => o.value === h.preset)) $('preset').value = h.preset;
   showPresetDesc();
   $('chat').innerHTML = '';
-  state.info = { preset: h.preset, workspace: h.workspace, model: h.model, mode: h.mode ?? 'ask' };
+  state.info = { preset: h.preset, workspace: h.workspace, model: h.model, mode: h.mode ?? 'ask', identity: h.identity !== false };
   renderSessionBar();
   resetThinkPin();
   let lastThink = '';   // reopening a session should pin its newest reasoning
@@ -327,7 +358,7 @@ async function switchSession(id) {
 async function newSession() {
   const res = await (await fetch('/api/agent/session', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: $('model').value, workspace: $('workspace').value, preset: $('preset').value, mode: $('mode').value }),
+    body: JSON.stringify({ model: $('model').value, workspace: $('workspace').value, preset: $('preset').value, mode: $('mode').value, identity: $('identity').checked }),
   })).json();
   if (res.error) return addMsg('reason', `Session error: ${res.error}`);
   state.session = res.session;
@@ -339,7 +370,7 @@ async function newSession() {
   renderTools();
   renderAllow();
   renderMcp();
-  state.info = { preset: $('preset').value, workspace: $('workspace').value, model: $('model').value, mode: $('mode').value };
+  state.info = { preset: $('preset').value, workspace: $('workspace').value, model: $('model').value, mode: $('mode').value, identity: $('identity').checked };
   renderSessionBar();
   await refreshSessions(res.session);
 }
@@ -540,6 +571,7 @@ function renderSessionBar() {
     `<span>MODEL <b>${esc(i.model ?? '—')}</b></span>`,
     `<span class="sb-ws">${esc(i.workspace ?? '—')}</span>`,
     `<span class="sb-perm ${mode}">${mode.toUpperCase()}</span>`,
+    `<span class="sb-soul ${i.identity === false ? 'off' : 'on'}">${i.identity === false ? 'NO SOUL' : 'SOUL'}</span>`,
   ].join(sep);
   bar.hidden = false;
 }

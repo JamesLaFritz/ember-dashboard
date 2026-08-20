@@ -225,6 +225,11 @@ body.benchpage { height: 100vh; display: flex; flex-direction: column; overflow:
 .runbar .sb-perm.ask  { color: #8c8c8c; }
 .runbar .sb-perm.plan { color: #bcbcbc; }
 .runbar .sb-perm.auto { color: #e29a2e; }   /* auto skips every gate — make it loud */
+/* Identity is part of the prompt, so a comparison run has to be able to see it
+   at a glance rather than infer it from a settings panel. */
+.runbar .sb-soul { padding: .1rem .4rem; border-radius: 3px; border: 1px solid currentColor; }
+.runbar .sb-soul.on  { color: #e29a2e; }
+.runbar .sb-soul.off { color: #8c8c8c; }
 
 /* keep the throughput readout hard right, after the session line */
 .modelbar #tps { margin-left: auto; white-space: nowrap; }

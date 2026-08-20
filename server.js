@@ -16,6 +16,7 @@ import { LMStudio } from './lib/lmstudio.js';
 import { Router } from './lib/router.js';
 import { AgentManager, PRESETS, TOOL_DEFS, listSkills } from './lib/agent.js';
 import { MCPManager } from './lib/mcp.js';
+import { identityDefault } from './lib/identity.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const configPath = path.join(__dirname, 'config.json');
@@ -47,6 +48,7 @@ app.get('/api/config', (_req, res) => res.json({
   presets: Object.entries(PRESETS).map(([id, p]) => ({ id, label: p.label, description: p.description })),
   tools: TOOL_DEFS.map(t => ({ name: t.name, needsApproval: t.needsApproval })),
   hudModels: ['auto', 'local', 'haiku', 'sonnet', 'opus'],
+  identityDefault: identityDefault(),   // what a new session starts with
 }));
 
 app.get('/api/vitals', (_req, res) => res.json(collectVitals(vault, config)));
@@ -171,11 +173,11 @@ app.get('/api/agent/sessions', (_req, res) => res.json({ sessions: agents.list()
 app.get('/api/agent/:id/history', (req, res) => {
   const s = agents.get(req.params.id);
   if (!s) return res.status(404).json({ error: 'no such session' });
-  res.json({ id: s.id, preset: s.preset, model: s.model, workspace: s.workspace, mode: s.mode, history: s.history, stats: s.stats, allowlist: [...s.allowlist], mcpServers: s.mcpServers, autoCompact: s.autoCompact });
+  res.json({ id: s.id, preset: s.preset, model: s.model, workspace: s.workspace, mode: s.mode, history: s.history, stats: s.stats, allowlist: [...s.allowlist], mcpServers: s.mcpServers, autoCompact: s.autoCompact, identity: s.identity });
 });
 app.post('/api/agent/session', (req, res) => {
   try {
-    const s = agents.create({ model: req.body.model, workspace: req.body.workspace, preset: req.body.preset ?? 'coding-agent', mode: req.body.mode });
+    const s = agents.create({ model: req.body.model, workspace: req.body.workspace, preset: req.body.preset ?? 'coding-agent', mode: req.body.mode, identity: req.body.identity });
     res.json({ session: s.id });
   } catch (err) { res.status(400).json({ error: String(err.message ?? err) }); }
 });
@@ -222,6 +224,14 @@ app.post('/api/agent/:id/compact', async (req, res) => {
 app.post('/api/agent/:id/autocompact', (req, res) => {
   const on = agents.setAutoCompact(req.params.id, !!req.body.on);
   on === null ? res.status(404).json({ error: 'no such session' }) : res.json({ ok: true, autoCompact: on });
+});
+// SOUL/USER on or off for one session. Rejected mid-turn: flipping the system
+// message under a running turn would split it across two prompts.
+app.post('/api/agent/:id/identity', (req, res) => {
+  try {
+    const r = agents.setIdentity(req.params.id, !!req.body.on);
+    r === null ? res.status(404).json({ error: 'no such session' }) : res.json({ ok: true, ...r });
+  } catch (err) { res.status(409).json({ error: String(err.message ?? err) }); }
 });
 // MCP: configured servers (for the rail) and per-session enable/disable.
 app.get('/api/mcp/servers', (_req, res) => res.json({ servers: mcp.status() }));

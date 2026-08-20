@@ -215,6 +215,40 @@ describe('auto-continue on the output ceiling', () => {
   });
 });
 
+describe('identity layer', () => {
+  // Identity is part of the prompt, so it belongs to the comparison rather than
+  // to the machine: one server has to be able to run a benchmark session with it
+  // off and an exploratory session with it on.
+  test('is per session, not per process', () => {
+    const repo = path.resolve(import.meta.dirname, '..');
+    const withId = systemFor('coding-agent', repo, null, true);
+    const without = systemFor('coding-agent', repo, null, false);
+    assert.ok(withId.length > without.length, 'identity added nothing');
+    assert.match(withId, /Who you work for/);
+    assert.doesNotMatch(without, /Who you work for/);
+    // Everything that is NOT identity has to survive the switch.
+    assert.match(without, /Verify your own work before reporting it done/);
+    assert.match(without, /Do not edit `package\.json`/);
+  });
+
+  test('a session composes its system message from its own setting', () => {
+    const on = new AgentSession({ id: 'a', lm: stubLM([]), model: 'm', workspace: tmp, preset: 'coding-agent', mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: true });
+    const off = new AgentSession({ id: 'b', lm: stubLM([]), model: 'm', workspace: tmp, preset: 'coding-agent', mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: false });
+    assert.match(on.messages[0].content, /Who you work for/);
+    assert.doesNotMatch(off.messages[0].content, /Who you work for/);
+    assert.equal(off.toJSON().identityOn, false);
+    assert.equal(AgentSession.fromJSON(off.toJSON(), { lm: stubLM([]) }).identity, false, 'setting did not survive a restart');
+  });
+
+  test('the report flags identity-on and does not flag identity-off', async () => {
+    const on = new AgentSession({ id: 'a', lm: stubLM([]), model: 'm', workspace: tmp, preset: 'coding-agent', mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: true });
+    const off = new AgentSession({ id: 'b', lm: stubLM([]), model: 'm', workspace: tmp, preset: 'coding-agent', mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: false });
+    assert.match(await on.report(), /Parity warning/);
+    assert.doesNotMatch(await off.report(), /Parity warning/);
+    assert.match(await off.report(), /correct for a comparison run/);
+  });
+});
+
 describe('run report', () => {
   test('emits the model key verbatim and flags a harness bail', async () => {
     const s = session(stubLM([{ content: 'chunk ', finishReason: 'length' }]));
