@@ -220,7 +220,7 @@ describe('run report', () => {
     const s = session(stubLM([{ content: 'chunk ', finishReason: 'length' }]));
     s.model = 'gemma-4-12b-agentic-fable5-composer2.5-v2-3.5x-tau2@q6_k';
     await s.send('go');
-    const md = s.report();
+    const md = await s.report();
     // The transcription bug this replaces: two run records carried the same key
     // with the @quant suffix dropped, which would have run one model twice.
     assert.match(md, /gemma-4-12b-agentic-fable5-composer2\.5-v2-3\.5x-tau2@q6_k/);

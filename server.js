@@ -191,10 +191,10 @@ app.post('/api/agent/:id/clear', (req, res) => {
 });
 // Benchmark run record, generated from the session rather than transcribed by
 // hand. `?download=1` returns it as a RUN.md attachment.
-app.get('/api/agent/:id/report', (req, res) => {
+app.get('/api/agent/:id/report', async (req, res) => {
   const s = agents.get(req.params.id);
   if (!s) return res.status(404).json({ error: 'no such session' });
-  const md = s.report();
+  const md = await s.report();
   if (req.query.download) {
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="RUN-${s.id}.md"`);
