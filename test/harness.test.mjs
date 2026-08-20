@@ -249,6 +249,35 @@ describe('identity layer', () => {
   });
 });
 
+describe('context length reporting', () => {
+  // The advertised max and the loaded window are different numbers, and
+  // reporting the max as the loaded window is a misdiagnosis this project has
+  // already made once. A run record must never print a plausible wrong number.
+  const lmWith = (model) => ({ async chatStream() { throw new Error('unused'); }, async models() { return [model]; } });
+
+  test('refuses to print the advertised max as the loaded window', async () => {
+    const s = session(lmWith({ key: 'stub', loadedContextLength: null, contextLength: 262144, maxContextLength: 262144 }));
+    const md = await s.report();
+    assert.match(md, /not loaded now/);
+    assert.doesNotMatch(md, /\*\*262,144\*\*/, 'printed the advertised max as the run window');
+    assert.match(md, /advertised max is 262,144/, 'should still say what the number it rejected was');
+  });
+
+  test('prints a genuinely loaded window', async () => {
+    const s = session(lmWith({ key: 'stub', loadedContextLength: 32768, contextLength: 32768, maxContextLength: 262144 }));
+    const md = await s.report();
+    assert.match(md, /\*\*32,768\*\* _\(read now/);
+    assert.match(md, /24,576 tokens/, 'compaction threshold not derived from the window');
+  });
+
+  test('prefers the value recorded during the run over a later read', async () => {
+    const s = session(lmWith({ key: 'stub', loadedContextLength: 8192, contextLength: 8192, maxContextLength: 262144 }));
+    s.contextWindow = 32768;   // what the run actually used
+    const md = await s.report();
+    assert.match(md, /\*\*32,768\*\* _\(recorded during the run\)_/);
+  });
+});
+
 describe('run report', () => {
   test('emits the model key verbatim and flags a harness bail', async () => {
     const s = session(stubLM([{ content: 'chunk ', finishReason: 'length' }]));
