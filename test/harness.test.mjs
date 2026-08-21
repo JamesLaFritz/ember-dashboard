@@ -278,6 +278,68 @@ describe('context length reporting', () => {
   });
 });
 
+describe('compaction', () => {
+  // FAULT (found 2026-08-21 in session 982e1cb3): compact() referenced
+  // `userIdxs`, a local that the #cutPoint() refactor had removed. It folded
+  // the messages, then threw ReferenceError before recording anything — and
+  // #maybeCompact swallowed the throw into a broadcast. Result: an 8.9-hour run
+  // whose context WAS compacted reported "Compactions: 0", and the whole
+  // model-vs-summary attribution mechanism was dead.
+  const lm = () => ({
+    async complete() { return 'HANDOFF NOTE'; },
+    async chatStream() { throw new Error('unused'); },
+    async models() { return [{ key: 'm', loadedContextLength: 4096, contextLength: 4096, maxContextLength: 4096 }]; },
+  });
+  const hoppy = (n) => {
+    const s = new AgentSession({ id: 'c', lm: lm(), model: 'm', workspace: tmp, preset: 'coding-agent', mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: false });
+    for (let i = 0; i < n; i++) {
+      s.messages.push({ role: 'assistant', content: null, tool_calls: [{ id: 'c' + i, type: 'function', function: { name: 'read_file', arguments: '{}' } }] });
+      s.messages.push({ role: 'tool', tool_call_id: 'c' + i, content: 'x'.repeat(200) });
+    }
+    s.lastPromptTokens = 3000;
+    return s;
+  };
+
+  test('folding on hop boundaries does not throw', async () => {
+    const s = hoppy(12);
+    assert.equal(await s.compact('auto'), true, 'compaction did not run');
+  });
+
+  test('a fold that swallows no user turns still records itself', async () => {
+    const s = hoppy(12);
+    await s.compact('auto');
+    const rec = s.history.filter(h => h.kind === 'compacted');
+    assert.equal(rec.length, 1, 'the fold happened but was never recorded');
+    assert.equal(rec[0].folded, 0, 'a hop-boundary fold swallows zero user turns');
+    assert.equal(rec[0].summary, 'HANDOFF NOTE', 'handoff note not kept verbatim');
+    assert.ok(rec[0].before > 0 && rec[0].after > 0);
+  });
+
+  test('user turns are counted when the cut swallows them', async () => {
+    const s = hoppy(2);
+    for (let i = 0; i < 5; i++) {
+      s.messages.push({ role: 'user', content: 'turn ' + i });
+      s.messages.push({ role: 'assistant', content: 'ok' });
+    }
+    await s.compact('auto');
+    const rec = s.history.find(h => h.kind === 'compacted');
+    assert.ok(rec.folded > 0, `expected folded user turns, got ${rec.folded}`);
+  });
+
+  // The throw was invisible because it only reached a broadcast, which nothing
+  // reads after the fact.
+  test('an auto-compaction failure lands in the transcript, not just a broadcast', async () => {
+    const s = hoppy(12);
+    s.lastPromptTokens = 4000;          // over 0.75 x 4096, so #maybeCompact fires
+    s.compact = async () => { throw new Error('boom'); };
+    s.autoCompact = true;
+    await s.send('go').catch(() => {});
+    const failed = s.history.filter(h => h.kind === 'compact_failed');
+    assert.equal(failed.length, 1, 'a failed auto-compaction left no record');
+    assert.match(failed[0].text, /boom/);
+  });
+});
+
 describe('run report', () => {
   test('emits the model key verbatim and flags a harness bail', async () => {
     const s = session(stubLM([{ content: 'chunk ', finishReason: 'length' }]));
