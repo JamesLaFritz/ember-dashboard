@@ -15,6 +15,7 @@ import path from 'node:path';
 import {
   SHELL_PATH, SHELL_NAME, CMD_TIMEOUT_MS, MAX_HOPS, MAX_AUTO_CONTINUE,
   clipOutput, runCommand, AgentSession, systemFor, PRESETS, escapesWorkspace, environmentPrompt, TOOL_DEFS,
+  SUMMARY_MAX_TOKENS, MIN_SUMMARY_CHARS,
 } from '../lib/agent.js';
 import { MAX_OUTPUT_TOKENS } from '../lib/lmstudio.js';
 
@@ -286,7 +287,7 @@ describe('compaction', () => {
   // whose context WAS compacted reported "Compactions: 0", and the whole
   // model-vs-summary attribution mechanism was dead.
   const lm = () => ({
-    async complete() { return 'HANDOFF NOTE'; },
+    async complete() { return 'HANDOFF NOTE. '.repeat(40); },   // must clear MIN_SUMMARY_CHARS
     async chatStream() { throw new Error('unused'); },
     async models() { return [{ key: 'm', loadedContextLength: 4096, contextLength: 4096, maxContextLength: 4096 }]; },
   });
@@ -305,13 +306,44 @@ describe('compaction', () => {
     assert.equal(await s.compact('auto'), true, 'compaction did not run');
   });
 
+  // FAULT (found 2026-08-21 in session e5c348f8, visible only because Fix 12
+  // made compaction record itself): the summariser ran at max_tokens 2048 on a
+  // reasoning model, spent 2047 of them on reasoning_content, and emitted ZERO
+  // content. complete()'s salvage path then returned the tail of the unfinished
+  // thought, so 94,296 tokens of session were replaced by 83 characters that
+  // began mid-list at "7.". Measured: 8192 finishes cleanly on the same input.
+  test('a summariser that returns nothing aborts the fold instead of completing it', async () => {
+    const s = hoppy(12);
+    const before = s.messages.length;
+    s.lm.complete = async () => '';                 // what an exhausted budget yields
+    assert.equal(await s.compact('auto'), false, 'compaction should refuse');
+    assert.equal(s.messages.length, before, 'context was folded anyway — the damage this prevents');
+    const failed = s.history.filter(h => h.kind === 'compact_failed');
+    assert.equal(failed.length, 1);
+    assert.match(failed[0].text, /ABORTED/);
+    assert.equal(s.history.filter(h => h.kind === 'compacted').length, 0);
+  });
+
+  test('a fragment of unfinished reasoning is refused too', async () => {
+    const s = hoppy(12);
+    const before = s.messages.length;
+    s.lm.complete = async () => '7. Next steps: 1) read full config.js, MathKit.js, shared APIs; 2) normalize config';
+    assert.equal(await s.compact('auto'), false, 'an 83-char note must not stand in for 94k tokens');
+    assert.equal(s.messages.length, before);
+  });
+
+  test('the summariser budget is sized for a reasoning model', () => {
+    assert.equal(SUMMARY_MAX_TOKENS, 8192, 'budget changed — 2048 produced empty summaries');
+    assert.ok(MIN_SUMMARY_CHARS > 158, 'floor must reject the observed failures (83 and 158 chars)');
+  });
+
   test('a fold that swallows no user turns still records itself', async () => {
     const s = hoppy(12);
     await s.compact('auto');
     const rec = s.history.filter(h => h.kind === 'compacted');
     assert.equal(rec.length, 1, 'the fold happened but was never recorded');
     assert.equal(rec[0].folded, 0, 'a hop-boundary fold swallows zero user turns');
-    assert.equal(rec[0].summary, 'HANDOFF NOTE', 'handoff note not kept verbatim');
+    assert.match(rec[0].summary, /^HANDOFF NOTE\./, 'handoff note not kept verbatim');
     assert.ok(rec[0].before > 0 && rec[0].after > 0);
   });
 

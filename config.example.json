@@ -108,6 +108,8 @@
     "commandTimeoutMs": 600000,
     "maxOutputTokens": 16384,
     "maxAutoContinue": 3,
+    "summaryMaxTokens": 8192,
+    "minSummaryChars": 400,
     "streamIdleMs": 120000,
     "toolIdleMs": 600000,
     "shell": null,
