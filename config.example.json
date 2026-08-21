@@ -102,5 +102,21 @@
       "placeholder": "x",
       "model": "sonnet"
     }
-  ]
+  ],
+  "harness": {
+    "maxHops": 250,
+    "commandTimeoutMs": 600000,
+    "maxOutputTokens": 16384,
+    "maxAutoContinue": 3,
+    "streamIdleMs": 120000,
+    "toolIdleMs": 600000,
+    "shell": null,
+    "identity": true,
+    "identityDir": null,
+    "soulPath": null,
+    "userPath": null,
+    "agentsPath": null,
+    "craft": false,
+    "craftPath": null
+  }
 }

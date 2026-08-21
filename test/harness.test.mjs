@@ -14,7 +14,7 @@ import path from 'node:path';
 
 import {
   SHELL_PATH, SHELL_NAME, CMD_TIMEOUT_MS, MAX_HOPS, MAX_AUTO_CONTINUE,
-  clipOutput, runCommand, AgentSession, systemFor, PRESETS,
+  clipOutput, runCommand, AgentSession, systemFor, PRESETS, escapesWorkspace, environmentPrompt, TOOL_DEFS,
 } from '../lib/agent.js';
 import { MAX_OUTPUT_TOKENS } from '../lib/lmstudio.js';
 
@@ -143,7 +143,7 @@ describe('generation and hop bounds', () => {
   // values a benchmark writeup cites.
   test('bounds are set to the values the benchmark assumes', () => {
     assert.equal(MAX_OUTPUT_TOKENS, 16384, 'output ceiling changed — run records cite this');
-    assert.equal(MAX_HOPS, 120, 'hop ceiling changed');
+    assert.equal(MAX_HOPS, 250, 'hop ceiling changed');
     assert.equal(CMD_TIMEOUT_MS, 600000, 'command timeout changed');
     assert.equal(MAX_AUTO_CONTINUE, 3, 'auto-continue budget changed');
   });
@@ -337,6 +337,98 @@ describe('compaction', () => {
     const failed = s.history.filter(h => h.kind === 'compact_failed');
     assert.equal(failed.length, 1, 'a failed auto-compaction left no record');
     assert.match(failed[0].text, /boom/);
+  });
+});
+
+describe('settings resolution', () => {
+  // These used to be environment-only, read at module load, with server.bat
+  // setting no environment at all — so every value a benchmark record cites
+  // lived somewhere nobody could see or version.
+  test('harness settings come from config.json', async () => {
+    const { num, flag, str, origin } = await import('../lib/config.js');
+    assert.equal(origin('EMBER_MAX_HOPS', 'maxHops'), 'config.json', 'maxHops is not being read from config.json');
+    assert.equal(num('EMBER_MAX_HOPS', 'maxHops', 1), MAX_HOPS);
+    assert.equal(num('NOPE_NOT_SET', 'alsoNotSet', 42), 42, 'default did not survive');
+    assert.equal(origin('NOPE_NOT_SET', 'alsoNotSet'), 'default');
+    // the wording each knob already documented has to keep working
+    assert.equal(flag('NOPE', 'nope', true), true);
+    assert.equal(str('NOPE', 'nope', 'fallback'), 'fallback');
+  });
+
+  test('an environment variable overrides config.json', async () => {
+    const { num, origin } = await import('../lib/config.js');
+    process.env.EMBER_TEST_KNOB = '7';
+    try {
+      assert.equal(num('EMBER_TEST_KNOB', 'maxHops', 1), 7, 'env did not win');
+      assert.equal(origin('EMBER_TEST_KNOB', 'maxHops'), 'env');
+    } finally { delete process.env.EMBER_TEST_KNOB; }
+  });
+
+  test('config.json ships the harness block so it is discoverable', () => {
+    const repo = path.resolve(import.meta.dirname, '..');
+    for (const f of ['config.json', 'config.example.json']) {
+      const cfg = JSON.parse(fs.readFileSync(path.join(repo, f), 'utf8'));
+      assert.ok(cfg.harness, `${f} has no harness block`);
+      assert.equal(cfg.harness.maxHops, 250, `${f} hop ceiling drifted`);
+    }
+  });
+});
+
+describe('the model is told its environment', () => {
+  // FAULT: Fix 2 settled WHICH shell runs and never told the model. A run
+  // emitted `dir`, `2>nul`, `findstr` and `type` into Git Bash and left two
+  // stray files named `nul` on disk, one outside the workspace. Frontier
+  // harnesses state the shell outright rather than letting it be inferred.
+  test('the system prompt names the platform, shell and workspace', () => {
+    const env = environmentPrompt('C:/Data/AI/Projects/Test');
+    assert.match(env, /## Environment/);
+    assert.match(env, /Platform/);
+    assert.match(env, /C:\/Data\/AI\/Projects\/Test/);
+    assert.match(env, new RegExp(SHELL_NAME));
+    assert.match(env, /Working directory does not persist/);
+  });
+
+  test('systemFor composes the environment block in', () => {
+    const sys = systemFor('coding-agent', 'C:/Data/AI/Projects/Test', null, false);
+    assert.match(sys, /## Environment/);
+    assert.match(sys, /Verify your own work/, 'the role instructions were displaced');
+  });
+
+  test('the run_command description names the shell and the cwd reset', () => {
+    const d = TOOL_DEFS.find(t => t.name === 'run_command').description;
+    assert.match(d, new RegExp(SHELL_NAME, 'i'));
+    assert.match(d, /does NOT persist/);
+    if (SHELL_NAME === 'git-bash') assert.match(d, /2>nul/, 'the exact trap that bit a run is not called out');
+  });
+});
+
+describe('workspace escape detection', () => {
+  const ws = process.platform === 'win32' ? 'C:\Data\AI\Projects\Test' : '/data/test';
+  test('flags the escapes actually observed', () => {
+    assert.equal(escapesWorkspace('cd .. && npm run build', ws), '..');
+    assert.equal(escapesWorkspace('ls && cd .. && npm install', ws), '..');
+    assert.ok(escapesWorkspace('cd', ws), 'bare cd goes home');
+    assert.ok(escapesWorkspace('cd ~', ws), 'cd ~ goes home');
+  });
+  test('leaves legitimate in-workspace work alone', () => {
+    assert.equal(escapesWorkspace('cd games/space-invaders && npm run build', ws), null);
+    assert.equal(escapesWorkspace('npm run build', ws), null);
+    assert.equal(escapesWorkspace('cd . && ls', ws), null);
+    assert.equal(escapesWorkspace('cd sub/../other && ls', ws), null, 'a path that returns inside is fine');
+  });
+  test('does not guess at computed paths', () => {
+    assert.equal(escapesWorkspace('cd $SOMEWHERE && ls', ws), null, 'cannot resolve it, so must not claim it escaped');
+  });
+  test('a real escape reaches the model in the command output', async () => {
+    if (!posix) return;
+    const out = await runCommand('cd .. && pwd', tmp, { timeoutMs: 10000 });
+    assert.match(out, /WARNING: this command left the workspace/);
+    assert.match(out, /out of scope/);
+  });
+  test('an ordinary command carries no warning', async () => {
+    if (!posix) return;
+    const out = await runCommand('pwd', tmp, { timeoutMs: 10000 });
+    assert.doesNotMatch(out, /WARNING/);
   });
 });
 

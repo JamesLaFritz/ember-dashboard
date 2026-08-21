@@ -136,6 +136,30 @@ Omitting `max_tokens` leaves LM Studio unbounded, so a prompt asking for output 
 | `EMBER_STREAM_IDLE_MS` | `120000` | Abort if no token arrives for this long. Bounds the gap *between* tokens, not the total run, so a legitimately long generation is never cut off for being long |
 | `EMBER_MAX_AUTO_CONTINUE` | `3` | How many times a truncated reply is resumed automatically. `0` restores the manual "type continue yourself" behaviour |
 
+### Harness settings — `config.json`
+
+Every tuning knob lives in the `harness` block of `config.json`, which is where a benchmark record can cite it and version control can see it drift. An environment variable of the same name still wins, for a one-off run:
+
+```
+EMBER_MAX_HOPS=400 node server.js
+```
+
+| `config.json` key | Env override | Default | What it does |
+|---|---|---|---|
+| `maxHops` | `EMBER_MAX_HOPS` | `250` | Tool hops in one turn before the harness bails |
+| `commandTimeoutMs` | `EMBER_CMD_TIMEOUT_MS` | `600000` | `run_command` timeout |
+| `maxOutputTokens` | `EMBER_MAX_TOKENS` | `16384` | Output ceiling per model call |
+| `maxAutoContinue` | `EMBER_MAX_AUTO_CONTINUE` | `3` | Automatic resumes after a truncation |
+| `streamIdleMs` | `EMBER_STREAM_IDLE_MS` | `120000` | Silence allowed before a tool call opens |
+| `toolIdleMs` | `EMBER_TOOL_IDLE_MS` | `600000` | Silence allowed while a tool payload is generated |
+| `shell` | `EMBER_SHELL` | auto | Shell for `run_command` (Git Bash preferred on Windows) |
+| `identity` | `EMBER_IDENTITY` | `true` | Whether new sessions start with SOUL/USER |
+| `identityDir` · `soulPath` · `userPath` | `EMBER_IDENTITY_DIR` · `EMBER_SOUL_PATH` · `EMBER_USER_PATH` | — | Where the identity files live |
+| `agentsPath` | `EMBER_AGENTS_PATH` | — | Fallback `AGENTS.md` |
+| `craft` · `craftPath` | `EMBER_CRAFT` · `EMBER_CRAFT_PATH` | `false` | The long-form method document |
+
+These are read once at start-up, so a change needs a restart.
+
 A stalled stream now raises a specific error naming how much arrived before the stall — CPU-offloaded models are the usual cause, and the message says so.
 
 Hitting the ceiling is a **harness event, not a model decision** — Codex and Claude Code both continue across a truncation on their own, so making the operator type `continue` turned a local run's continue-count into a measurement of a protocol the other harnesses never participate in. The workbench now resumes on its own, bounded and recorded: each resume appears in the transcript as an `auto-continue` card and in the run report as a counted `autocontinue` event. Exhausting the budget is recorded as a `bail`, the same way the hop ceiling is.
@@ -149,6 +173,10 @@ Hitting the ceiling is a **harness event, not a model decision** — Codex and C
 - **Timeouts kill the whole process tree** (`taskkill /T` on Windows, the process group elsewhere). Killing the shell does not kill what the shell started, and orphans accumulate across a long run holding ports.
 
 Output is capped while it accumulates, not only when it is returned, so a runaway command cannot exhaust server memory before there is anything to clip. Both the live cap and the final clip drop from the head — build errors land at the tail.
+
+**The model is told all of this.** Its system prompt opens with an Environment block naming the platform, the workspace root, the shell, and the fact that the working directory resets; the `run_command` description repeats the shell and its syntax traps. Fix 2 settled *which* shell runs and stopped there, so models guessed — one benchmark run emitted `dir`, `type`, `findstr` and `2>nul` into Git Bash, where `2>nul` does not discard output but **creates a file named `nul`**. Two of them ended up on disk, one outside the workspace. Frontier harnesses (Claude Code, Codex) state the shell outright rather than leaving it to inference, and so does this one now.
+
+**Leaving the workspace is reported, not blocked.** `run_command` notices a `cd` that lands outside the workspace root and appends a warning to the output the model reads. This is deliberately *not* a security boundary — a shell is Turing-complete and `cd $(echo ..)` defeats any pattern match, so a real boundary would mean a container or a job object. It guards the failure actually observed: a run that did `cd .. && npm install`, scanned an unrelated tree for 5 MB of output, and wrote a stray file above the workspace root. File tools are genuinely jailed; commands are advised.
 
 ### Run reports
 
