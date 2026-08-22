@@ -15,7 +15,7 @@ import path from 'node:path';
 import {
   SHELL_PATH, SHELL_NAME, CMD_TIMEOUT_MS, MAX_HOPS, MAX_AUTO_CONTINUE,
   clipOutput, runCommand, AgentSession, systemFor, PRESETS, escapesWorkspace, environmentPrompt, TOOL_DEFS,
-  SUMMARY_MAX_TOKENS, MIN_SUMMARY_CHARS,
+  SUMMARY_MAX_TOKENS, MIN_SUMMARY_CHARS, MAX_EMPTY_RETRIES,
 } from '../lib/agent.js';
 import { MAX_OUTPUT_TOKENS } from '../lib/lmstudio.js';
 
@@ -461,6 +461,62 @@ describe('workspace escape detection', () => {
     if (!posix) return;
     const out = await runCommand('pwd', tmp, { timeoutMs: 10000 });
     assert.doesNotMatch(out, /WARNING/);
+  });
+});
+
+describe('empty turns', () => {
+  // FAULT (session 32d6ceae): the model emitted its tool call INSIDE
+  // reasoning_content — `</tool_call>` appears there verbatim — so LM Studio
+  // parsed no tool call and returned no content. The harness read "no tool
+  // calls" as "finished", ended the turn, and reported success with an empty
+  // reply. The run stopped at turn 89 one sentence after "I found two
+  // integration mismatches ... I'll fix both now", having never built anything.
+  test('an empty turn is retried, not reported as finished', async () => {
+    const s = session(stubLM([
+      { content: '', finishReason: 'stop' },
+      { content: 'fixed both mismatches', finishReason: 'stop' },
+    ]));
+    const out = await s.send('go');
+    assert.equal(out, 'fixed both mismatches', 'the run ended on the empty turn');
+    assert.equal(s.history.filter(h => h.kind === 'empty_turn').length, 1);
+    assert.equal(s.history.filter(h => h.kind === 'bail').length, 0);
+  });
+
+  test('a stray tool call in reasoning is named in the nudge', async () => {
+    const lm = stubLM([{ content: '', finishReason: 'stop' }, { content: 'done', finishReason: 'stop' }]);
+    const base = lm.chatStream;
+    let first = true;
+    lm.chatStream = async (a) => {
+      const r = await base(a);
+      if (first) { first = false; r.reasoning = "I fix both now.\n</parameter>\n</function>\n</tool_call>"; }
+      return r;
+    };
+    const s = session(lm);
+    await s.send('go');
+    const rec = s.history.find(h => h.kind === 'empty_turn');
+    assert.equal(rec.strayCall, true, 'the tool-call-in-reasoning signature was missed');
+    const nudge = s.messages.filter(m => m.role === 'user').pop();
+    assert.match(nudge.content, /inside your reasoning/);
+  });
+
+  test('endless empty turns still terminate, as a bail', async () => {
+    const s = session(stubLM([{ content: '', finishReason: 'stop' }]));
+    const out = await s.send('go');
+    assert.equal(s.history.filter(h => h.kind === 'empty_turn').length, MAX_EMPTY_RETRIES);
+    const bail = s.history.find(h => h.kind === 'bail');
+    assert.ok(bail, 'no bail recorded');
+    assert.equal(bail.reason, 'empty_turn');
+    assert.match(out, /neither output nor a tool call/);
+  });
+
+  test('a normal empty-content turn WITH tool calls is untouched', async () => {
+    const s = session(stubLM([
+      { content: '', toolCalls: [{ id: 'a', name: 'list_dir', args: '{"path":"."}' }], finishReason: 'stop' },
+      { content: 'listed', finishReason: 'stop' },
+    ]));
+    const out = await s.send('go');
+    assert.equal(out, 'listed');
+    assert.equal(s.history.filter(h => h.kind === 'empty_turn').length, 0, 'a tool-calling turn is not empty');
   });
 });
 
