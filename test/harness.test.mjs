@@ -15,7 +15,7 @@ import path from 'node:path';
 import {
   SHELL_PATH, SHELL_NAME, CMD_TIMEOUT_MS, MAX_HOPS, MAX_AUTO_CONTINUE,
   clipOutput, runCommand, AgentSession, systemFor, PRESETS, escapesWorkspace, environmentPrompt, TOOL_DEFS,
-  SUMMARY_MAX_TOKENS, MIN_SUMMARY_CHARS, MAX_EMPTY_RETRIES,
+  SUMMARY_MAX_TOKENS, MIN_SUMMARY_CHARS, MAX_EMPTY_RETRIES, MAX_TOOL_CALLS_PER_TURN, capToolCalls,
 } from '../lib/agent.js';
 import { MAX_OUTPUT_TOKENS } from '../lib/lmstudio.js';
 
@@ -517,6 +517,94 @@ describe('empty turns', () => {
     const out = await s.send('go');
     assert.equal(out, 'listed');
     assert.equal(s.history.filter(h => h.kind === 'empty_turn').length, 0, 'a tool-calling turn is not empty');
+  });
+});
+
+describe('runaway tool calls', () => {
+  // FAULT (session 32d6ceae): the model emitted the SAME read_file 383 times in
+  // one assistant turn. The loop ran every one, appending 383 results of ~24KB
+  // -> a 9MB context. Role counts ended at tool:388 / assistant:6.
+  test('identical calls in one turn collapse to one', () => {
+    const calls = Array.from({ length: 383 }, (_, i) => ({ id: 'c' + i, name: 'read_file', args: '{"path":"GameController.js"}' }));
+    const { kept, duplicates, overCap } = capToolCalls(calls);
+    assert.equal(kept.length, 1, 'a repeated call is still one question');
+    assert.equal(duplicates, 382);
+    assert.equal(overCap, 0);
+  });
+
+  test('distinct calls are capped, not deduped away', () => {
+    const calls = Array.from({ length: 100 }, (_, i) => ({ id: 'c' + i, name: 'read_file', args: `{"path":"f${i}.js"}` }));
+    const { kept, duplicates, overCap } = capToolCalls(calls);
+    assert.equal(kept.length, MAX_TOOL_CALLS_PER_TURN);
+    assert.equal(duplicates, 0);
+    assert.equal(overCap, 100 - MAX_TOOL_CALLS_PER_TURN);
+  });
+
+  test('an ordinary turn is untouched', () => {
+    const calls = [{ id: 'a', name: 'read_file', args: '{"path":"a.js"}' }, { id: 'b', name: 'list_dir', args: '{"path":"."}' }];
+    const { kept, duplicates, overCap } = capToolCalls(calls);
+    assert.equal(kept.length, 2);
+    assert.equal(duplicates + overCap, 0);
+  });
+
+  test('the model is told what was dropped, and only kept calls get results', async () => {
+    const dupes = Array.from({ length: 40 }, (_, i) => ({ id: 'c' + i, name: 'list_dir', args: '{"path":"."}' }));
+    const s = session(stubLM([
+      { content: '', toolCalls: dupes, finishReason: 'stop' },
+      { content: 'ok', finishReason: 'stop' },
+    ]));
+    await s.send('go');
+    const assistant = s.messages.find(m => m.tool_calls);
+    const results = s.messages.filter(m => m.role === 'tool');
+    assert.equal(assistant.tool_calls.length, 1, 'dropped calls must not stay in the assistant message');
+    assert.equal(results.length, 1, 'every tool_call needs exactly one result');
+    assert.match(results[0].content, /HARNESS: you emitted 40 tool calls/);
+    assert.equal(s.history.filter(h => h.kind === 'tools_capped').length, 1);
+  });
+});
+
+describe('cutPoint falls back on size', () => {
+  // The same run again: 388 tool results under 6 hops meant
+  // `hopIdxs.length <= keepRecentHops`, so cutPoint returned 0 and compaction
+  // declined to run while the context sat at 9MB against a 124,928 window.
+  // Realistic shape once the per-turn cap exists: many groups, each small.
+  // 388 results under ONE assistant is no longer reachable — capToolCalls stops
+  // it at 32 — so the size fallback is tested against what can actually occur.
+  const fat = (groups, perGroup, chars) => {
+    const s = new AgentSession({ id: 'f', lm: { async complete() { return 'NOTE. '.repeat(80); }, async chatStream() { throw new Error('x'); }, async models() { return []; } },
+      model: 'm', workspace: tmp, preset: 'coding-agent', mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: false });
+    s.contextWindow = 124928;
+    for (let g = 0; g < groups; g++) {
+      s.messages.push({ role: 'assistant', content: null, tool_calls: [{ id: 'g' + g, type: 'function', function: { name: 'read_file', arguments: '{}' } }] });
+      for (let i = 0; i < perGroup; i++) s.messages.push({ role: 'tool', tool_call_id: 'g' + g, content: 'x'.repeat(chars) });
+    }
+    return s;
+  };
+
+  test('a huge context under few hops still folds', async () => {
+    const s = fat(20, 20, 24456);        // 400 tool results, 9.8MB — the real run's volume
+    const before = s.messages.length;
+    s.lastPromptTokens = 2203081;
+    assert.equal(await s.compact('auto'), true, 'compaction declined on a 9MB context');
+    assert.ok(s.messages.length < before / 2, `kept ${s.messages.length} of ${before}`);
+    const bytes = JSON.stringify(s.messages).length;
+    assert.ok(bytes < 124928 * 4, `kept ${bytes} chars, still over the window`);
+  });
+
+  test('a small conversation is left alone', async () => {
+    const s = fat(1, 4, 200);
+    assert.equal(await s.compact('auto'), false, 'folded a conversation that fits');
+  });
+
+  test('a fold never orphans a tool result', async () => {
+    const s = fat(20, 20, 24456);
+    s.lastPromptTokens = 2203081;
+    await s.compact('auto');
+    const first = s.messages.findIndex(m => m.role === 'tool');
+    if (first > 0) {
+      const owner = s.messages.slice(0, first).reverse().find(m => m.role === 'assistant');
+      assert.ok(owner?.tool_calls?.length, 'a tool result survived without its assistant');
+    }
   });
 });
 

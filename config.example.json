@@ -111,6 +111,7 @@
     "summaryMaxTokens": 8192,
     "minSummaryChars": 400,
     "maxEmptyRetries": 2,
+    "maxToolCallsPerTurn": 32,
     "streamIdleMs": 120000,
     "toolIdleMs": 600000,
     "shell": null,
