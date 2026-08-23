@@ -21,7 +21,20 @@ import { identityDefault } from './lib/identity.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const configPath = path.join(__dirname, 'config.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-const saveConfig = () => fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
+// Persist only what the server owns, merged over whatever is on disk NOW.
+// Writing the whole in-memory object reverted config.json to its startup
+// snapshot, so any edit made while the server ran — a hop ceiling, a reasoning
+// budget — was silently undone the next time a workspace was added. The server
+// only ever changes `workspaces` and `skills`; everything else in the file
+// belongs to whoever edited it.
+const SERVER_OWNED = ['workspaces', 'skills'];
+const saveConfig = () => {
+  let onDisk = {};
+  try { onDisk = JSON.parse(fs.readFileSync(configPath, 'utf8')); }
+  catch (err) { console.error(`config: re-read failed (${err.message}); writing in-memory copy`); onDisk = { ...config }; }
+  for (const k of SERVER_OWNED) onDisk[k] = config[k];
+  fs.writeFileSync(configPath, JSON.stringify(onDisk, null, 2) + '\n', 'utf8');
+};
 
 const app = express();
 app.use(express.json({ limit: '4mb' }));

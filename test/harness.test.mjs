@@ -16,7 +16,7 @@ import {
   SHELL_PATH, SHELL_NAME, CMD_TIMEOUT_MS, MAX_HOPS, MAX_AUTO_CONTINUE,
   clipOutput, runCommand, AgentSession, systemFor, PRESETS, escapesWorkspace, environmentPrompt, TOOL_DEFS,
   SUMMARY_MAX_TOKENS, MIN_SUMMARY_CHARS, MAX_EMPTY_RETRIES, MAX_TOOL_CALLS_PER_TURN, capToolCalls,
-  MAX_REASONING_OVERRUNS,
+  MAX_REASONING_OVERRUNS, REASONING_BUDGET,
 } from '../lib/agent.js';
 import { MAX_OUTPUT_TOKENS } from '../lib/lmstudio.js';
 
@@ -669,6 +669,89 @@ describe('reasoning overrun', () => {
     // 4 rounds of a full budget is what the real run burned before stopping.
     assert.ok(MAX_REASONING_OVERRUNS < MAX_AUTO_CONTINUE,
       'a budget that produces nothing should be abandoned sooner than one that produces output');
+  });
+});
+
+describe('reasoning budget', () => {
+  // LM Studio's Reasoning Budget is a per-model LOAD-time setting and the API
+  // does not report it — the loaded config exposes only
+  // `reasoning_budget_message`. So it is declared in config.json, and the only
+  // available check is whether the model ever spent more than the declaration.
+  // Measured on qwen3.8-27b-mtp at 8192: reasoning clamped to 8190 and it
+  // answered cleanly, on a prompt that had produced 2000 reasoning tokens and
+  // zero content three times running.
+  const withSeen = (seen) => {
+    const s = session(stubLM([{ content: 'ok', finishReason: 'stop' }]));
+    s.maxReasoningTokens = seen;
+    return s;
+  };
+
+  test('a declaration consistent with what was observed reads as consistent', async () => {
+    if (!REASONING_BUDGET) return;
+    const md = await withSeen(REASONING_BUDGET - 2).report();
+    assert.match(md, /consistent/);
+    assert.doesNotMatch(md, /NOT in force/);
+  });
+
+  test('observing more than the declaration proves the budget is not in force', async () => {
+    if (!REASONING_BUDGET) return;
+    const md = await withSeen(REASONING_BUDGET + 1000).report();
+    assert.match(md, /NOT in force/);
+    assert.match(md, /load-time setting/);
+  });
+
+  test('a declaration with nothing observed is called unverified, not confirmed', async () => {
+    if (!REASONING_BUDGET) return;
+    const md = await withSeen(0).report();
+    assert.match(md, /unverified/);
+  });
+
+  test('the high-water mark survives a restart', () => {
+    const s = withSeen(8190);
+    assert.equal(AgentSession.fromJSON(s.toJSON(), { lm: stubLM([]) }).maxReasoningTokens, 8190);
+  });
+
+  test('reasoning_tokens is carried off the stream', async () => {
+    const s = session(stubLM([{ content: 'ok', finishReason: 'stop' }]));
+    s.lm.chatStream = async () => ({ content: 'ok', reasoning: '', toolCalls: [], approxTokens: 5,
+      promptTokens: 10, serverTps: 1, finishReason: 'stop', reasoningTokens: 4321 });
+    await s.send('go');
+    assert.equal(s.maxReasoningTokens, 4321, 'the harness never saw the reasoning cost');
+  });
+});
+
+describe('config persistence', () => {
+  // FAULT: server.js read config.json once at startup and saveConfig() wrote
+  // that whole in-memory object back. Adding a workspace therefore reverted the
+  // file to its startup snapshot — silently undoing every harness setting edited
+  // while the server ran. Three keys (maxToolCallsPerTurn, maxReasoningOverruns,
+  // reasoningBudget) vanished this way, and nothing reported it.
+  test('saveConfig merges over the file instead of overwriting it', async () => {
+    const src = fs.readFileSync(path.resolve(import.meta.dirname, '..', 'server.js'), 'utf8');
+    const fn = src.slice(src.indexOf('const saveConfig'), src.indexOf('const app = express()'));
+    assert.match(fn, /readFileSync\(configPath/, 'saveConfig must re-read the file before writing');
+    assert.match(fn, /SERVER_OWNED/, 'it must write only the keys the server owns');
+    assert.doesNotMatch(fn, /JSON\.stringify\(config,/, 'writing the whole in-memory config is the bug');
+  });
+
+  test('the server owns only workspaces and skills', async () => {
+    const src = fs.readFileSync(path.resolve(import.meta.dirname, '..', 'server.js'), 'utf8');
+    const m = src.match(/const SERVER_OWNED = \[([^\]]+)\]/);
+    assert.ok(m, 'SERVER_OWNED not found');
+    const owned = m[1].split(',').map(x => x.trim().replace(/['"]/g, '')).filter(Boolean);
+    assert.deepEqual(owned.sort(), ['skills', 'workspaces'],
+      'anything else the server persists would clobber a hand-edited harness setting');
+  });
+
+  test('every harness setting the code reads is present in config.example.json', () => {
+    const repo = path.resolve(import.meta.dirname, '..');
+    const cfg = JSON.parse(fs.readFileSync(path.join(repo, 'config.example.json'), 'utf8'));
+    const src = fs.readFileSync(path.join(repo, 'lib', 'agent.js'), 'utf8')
+      + fs.readFileSync(path.join(repo, 'lib', 'lmstudio.js'), 'utf8')
+      + fs.readFileSync(path.join(repo, 'lib', 'identity.js'), 'utf8');
+    const keys = [...src.matchAll(/(?:num|str|flag)\(\s*[`'"][A-Z_]+[`'"]\s*,\s*'([a-zA-Z]+)'/g)].map(m => m[1]);
+    const missing = [...new Set(keys)].filter(k => !(k in cfg.harness));
+    assert.deepEqual(missing, [], `harness keys read by the code but absent from the shipped config: ${missing}`);
   });
 });
 

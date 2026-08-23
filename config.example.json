@@ -113,6 +113,7 @@
     "maxEmptyRetries": 2,
     "maxToolCallsPerTurn": 32,
     "maxReasoningOverruns": 1,
+    "reasoningBudget": 0,
     "streamIdleMs": 120000,
     "toolIdleMs": 600000,
     "shell": null,

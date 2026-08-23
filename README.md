@@ -157,8 +157,32 @@ EMBER_MAX_HOPS=400 node server.js
 | `identityDir` · `soulPath` · `userPath` | `EMBER_IDENTITY_DIR` · `EMBER_SOUL_PATH` · `EMBER_USER_PATH` | — | Where the identity files live |
 | `agentsPath` | `EMBER_AGENTS_PATH` | — | Fallback `AGENTS.md` |
 | `craft` · `craftPath` | `EMBER_CRAFT` · `EMBER_CRAFT_PATH` | `false` | The long-form method document |
+| `maxToolCallsPerTurn` | `EMBER_MAX_TOOL_CALLS` | `32` | Tool calls executed from one assistant turn; duplicates are removed first |
+| `maxReasoningOverruns` | `EMBER_MAX_REASONING_OVERRUNS` | `1` | Retries when the whole output budget goes to reasoning |
+| `reasoningBudget` | `EMBER_REASONING_BUDGET` | `0` (none) | **Declared, not detected** — see below |
 
 These are read once at start-up, so a change needs a restart.
+
+The server writes this file when you add a workspace or change a skill's model, and it **merges** those keys over whatever is on disk rather than writing its startup copy back. An earlier version overwrote the whole file, which silently reverted any harness setting edited while the server was running.
+
+### Reasoning budget
+
+LM Studio has a per-model **Reasoning Budget** (Inference → Reasoning) that caps thinking tokens specifically, leaving the output ceiling for actual output. It is worth setting on a reasoning model: measured on `qwen3.8-27b-mtp`, a prompt that produced 2,000 reasoning tokens and **zero content** three times running instead clamped at 8,190 reasoning tokens and returned 17,563 characters with `finish_reason: stop`. It stops thinking and starts answering — no degradation at the boundary.
+
+Two things make it awkward, and the harness compensates for both:
+
+- **It is a load-time setting.** Changing it in the UI does nothing until the model is reloaded.
+- **The API will not report it.** A loaded model's config exposes only `reasoning_budget_message`; there is no field saying what the budget is. So `reasoningBudget` in `config.json` is a *declaration*, and nothing can confirm it directly.
+
+What the harness can do is check the declaration against reality: every response reports `reasoning_tokens`, so the run report tracks the high-water mark and compares. A budget that was never actually applied shows up as an observed value above the declared one:
+
+```
+| Reasoning budget | 8,192 declared, 8,190 observed — consistent |
+| Reasoning budget | ⚠️ declared 8,192 but 12,000 observed — the budget is NOT in force… |
+| Reasoning budget | 8,192 declared — no reasoning observed yet, so unverified |
+```
+
+Leave `reasoning_budget_message` blank; the model transitions cleanly without one, and it is one less per-model string to keep identical.
 
 A stalled stream now raises a specific error naming how much arrived before the stall — CPU-offloaded models are the usual cause, and the message says so.
 
