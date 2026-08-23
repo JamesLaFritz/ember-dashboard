@@ -16,6 +16,7 @@ import {
   SHELL_PATH, SHELL_NAME, CMD_TIMEOUT_MS, MAX_HOPS, MAX_AUTO_CONTINUE,
   clipOutput, runCommand, AgentSession, systemFor, PRESETS, escapesWorkspace, environmentPrompt, TOOL_DEFS,
   SUMMARY_MAX_TOKENS, MIN_SUMMARY_CHARS, MAX_EMPTY_RETRIES, MAX_TOOL_CALLS_PER_TURN, capToolCalls,
+  MAX_REASONING_OVERRUNS,
 } from '../lib/agent.js';
 import { MAX_OUTPUT_TOKENS } from '../lib/lmstudio.js';
 
@@ -143,7 +144,7 @@ describe('generation and hop bounds', () => {
   // Config drift is silent and invalidates cross-model comparison. Pin the
   // values a benchmark writeup cites.
   test('bounds are set to the values the benchmark assumes', () => {
-    assert.equal(MAX_OUTPUT_TOKENS, 16384, 'output ceiling changed — run records cite this');
+    assert.equal(MAX_OUTPUT_TOKENS, 32768, 'output ceiling changed — run records cite this');
     assert.equal(MAX_HOPS, 250, 'hop ceiling changed');
     assert.equal(CMD_TIMEOUT_MS, 600000, 'command timeout changed');
     assert.equal(MAX_AUTO_CONTINUE, 3, 'auto-continue budget changed');
@@ -608,6 +609,69 @@ describe('cutPoint falls back on size', () => {
   });
 });
 
+describe('reasoning overrun', () => {
+  // FAULT (session ba96be9b): five turns hit the output ceiling with content=0.
+  // The whole 16,384-token budget went to reasoning_content, so auto-continue's
+  // "resume where you left off" had nothing to resume and simply bought another
+  // full budget of thinking — 4 rounds, ~26 minutes, 65k tokens, no output.
+  // finish_reason 'length' covers two different failures and they need opposite
+  // responses.
+  const lm = (steps) => {
+    const base = stubLM(steps);
+    const inner = base.chatStream;
+    let i = 0;
+    base.chatStream = async (a) => {
+      const r = await inner(a);
+      r.reasoning = 'x'.repeat(500);   // it was thinking, not looping
+      i++;
+      return r;
+    };
+    return base;
+  };
+
+  test('a ceiling hit with no content is not treated as resumable', async () => {
+    const s = session(lm([
+      { content: '', finishReason: 'length' },
+      { content: 'wrote the file', finishReason: 'stop' },
+    ]));
+    const out = await s.send('go');
+    assert.equal(out, 'wrote the file');
+    assert.equal(s.history.filter(h => h.kind === 'reasoning_overrun').length, 1);
+    assert.equal(s.history.filter(h => h.kind === 'autocontinue').length, 0, 'auto-continue must not claim this one');
+    const nudge = s.messages.filter(m => m.role === 'user').pop();
+    assert.match(nudge.content, /Stop analysing and act/);
+  });
+
+  test('a ceiling hit WITH content still auto-continues', async () => {
+    const s = session(stubLM([
+      { content: 'half a file', finishReason: 'length' },
+      { content: ' and the rest', finishReason: 'stop' },
+    ]));
+    const out = await s.send('go');
+    assert.equal(out, 'half a file and the rest', 'genuine truncation must still resume');
+    assert.equal(s.history.filter(h => h.kind === 'autocontinue').length, 1);
+    assert.equal(s.history.filter(h => h.kind === 'reasoning_overrun').length, 0);
+  });
+
+  test('endless reasoning bails fast, and says why', async () => {
+    const s = session(lm([{ content: '', finishReason: 'length' }]));
+    const out = await s.send('go');
+    // every occurrence is recorded, including the one that bails — the run record
+    // should say how often it happened, not how often we retried
+    assert.equal(s.history.filter(h => h.kind === 'reasoning_overrun').length, MAX_REASONING_OVERRUNS + 1);
+    const bail = s.history.find(h => h.kind === 'bail');
+    assert.equal(bail.reason, 'reasoning_overrun');
+    assert.match(out, /budget on reasoning/);
+    assert.match(out, /Raise maxOutputTokens/);
+  });
+
+  test('it bails far sooner than auto-continue would have', () => {
+    // 4 rounds of a full budget is what the real run burned before stopping.
+    assert.ok(MAX_REASONING_OVERRUNS < MAX_AUTO_CONTINUE,
+      'a budget that produces nothing should be abandoned sooner than one that produces output');
+  });
+});
+
 describe('run report', () => {
   test('emits the model key verbatim and flags a harness bail', async () => {
     const s = session(stubLM([{ content: 'chunk ', finishReason: 'length' }]));
@@ -619,7 +683,7 @@ describe('run report', () => {
     assert.match(md, /gemma-4-12b-agentic-fable5-composer2\.5-v2-3\.5x-tau2@q6_k/);
     assert.match(md, /Auto-continues used/);
     assert.match(md, /output ceiling/);
-    assert.match(md, /Max output tokens \/ response \| 16,384/);
+    assert.match(md, /Max output tokens \/ response \| 32,768/);
     assert.match(md, /re-run\*\* verification after repairing/);
   });
 });

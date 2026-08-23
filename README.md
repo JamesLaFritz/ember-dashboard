@@ -132,7 +132,7 @@ Omitting `max_tokens` leaves LM Studio unbounded, so a prompt asking for output 
 
 | Env var | Default | What it does |
 |---|---|---|
-| `EMBER_MAX_TOKENS` | `16384` | Output ceiling per model call. Generous — one fully-written source file can be long — but finite. A reply that hits it is marked `[truncated at the … ceiling]` rather than silently ending |
+| `EMBER_MAX_TOKENS` | `32768` | Output ceiling per model call — see below |
 | `EMBER_STREAM_IDLE_MS` | `120000` | Abort if no token arrives for this long. Bounds the gap *between* tokens, not the total run, so a legitimately long generation is never cut off for being long |
 | `EMBER_MAX_AUTO_CONTINUE` | `3` | How many times a truncated reply is resumed automatically. `0` restores the manual "type continue yourself" behaviour |
 
@@ -162,7 +162,13 @@ These are read once at start-up, so a change needs a restart.
 
 A stalled stream now raises a specific error naming how much arrived before the stall — CPU-offloaded models are the usual cause, and the message says so.
 
+**What the ceiling actually bounds.** `maxOutputTokens` is the `max_tokens` on each request: how much the model may generate in *one response*. It is not the conversation limit (that is the loaded context window, which compaction manages) and it does not cost VRAM (the KV cache is preallocated for the whole window at load). It exists because an unbounded generation answers "as long as possible" literally — one measured run was still streaming at 500 s and 88,650 characters.
+
+The subtlety that cost a run: **it counts everything the model generates** — `reasoning_content`, visible content, and tool-call arguments, all against the same allowance. On a reasoning model the thinking can consume the entire budget and emit nothing, which arrives as `finish_reason: "length"` with empty content. That is a different failure from a genuine truncation and gets different handling (below); raising the ceiling is the other lever.
+
 Hitting the ceiling is a **harness event, not a model decision** — Codex and Claude Code both continue across a truncation on their own, so making the operator type `continue` turned a local run's continue-count into a measurement of a protocol the other harnesses never participate in. The workbench now resumes on its own, bounded and recorded: each resume appears in the transcript as an `auto-continue` card and in the run report as a counted `autocontinue` event. Exhausting the budget is recorded as a `bail`, the same way the hop ceiling is.
+
+**Two failures share `finish_reason: "length"`, and they need opposite responses.** A truncation *with* partial output is resumable — auto-continue picks up where it stopped. A truncation with *no* output means the budget went to reasoning, so "resume where you left off" has nothing to resume and merely buys another full budget of thinking. Measured on one run: five such turns, every one `content=0`, roughly 26 minutes and 65,000 tokens spent producing nothing. The second case is now recorded as `reasoning_overrun`, nudged to act rather than continue, and abandoned after `maxReasoningOverruns` (default 1) — deliberately far sooner than the auto-continue budget, because a generation that produces nothing is worth less patience than one that produces output.
 
 ### Running commands
 
