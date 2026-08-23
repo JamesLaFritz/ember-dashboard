@@ -161,6 +161,7 @@ EMBER_MAX_HOPS=400 node server.js
 | `maxReasoningOverruns` | `EMBER_MAX_REASONING_OVERRUNS` | `1` | Retries when the whole output budget goes to reasoning |
 | `reasoningBudget` | `EMBER_REASONING_BUDGET` | `0` (none) | **Declared, not detected** — see below |
 | `contextSafetyMargin` | `EMBER_CONTEXT_MARGIN` | `2048` | Slack between the compaction threshold and the window, on top of the output ceiling |
+| `minOutputFloor` | `EMBER_MIN_OUTPUT_FLOOR` | `1024` | Never request less than this; a cap this low means the context is too full to work in |
 
 These are read once at start-up, so a change needs a restart.
 
@@ -179,6 +180,18 @@ A context window holds **prompt and completion together** — every generated to
 Two consequences the harness now enforces rather than assuming:
 
 **The compaction threshold must leave room for a whole response.** A fixed ratio cannot know the output ceiling, and at these values the two collide: a turn starting just under 0.75 × 124,928 = 93,696 that then generates a full 32,768 reaches **126,464** — over the window by 1,536. So the threshold is derived as the tighter of the ratio and `window − maxOutputTokens − contextSafetyMargin`, which here gives **90,112**, and the run report says which constraint bound. If the ceiling leaves no room at all the report calls it misconfigured instead of quietly clamping.
+
+**The generation cap is per request, not a constant.** The portable rule is `G ≤ min(M, C − I − S)` — with `C` the window, `I` the rendered input and `S` the safety reserve — so the binding term changes as the conversation grows. Sending a fixed ceiling implements only the `M` term:
+
+```
+window 128,500 | ceiling 32,768 | compaction threshold 93,684
+  input      cap   binding
+        0   32768   ceiling M
+    90000   32768   ceiling M
+    94000   32452   headroom C−I−S
+   120000    6452   headroom C−I−S
+   128000    1024   FLOOR — reported as "too full to work in"
+```
 
 **Reasoning and content share one allowance.** With a reasoning budget in force the room left for actual output is `maxOutputTokens − reasoningBudget` = **24,576** here, and the report states it — that is the number that decides whether a large file fits in one turn, and it was previously left to be inferred.
 

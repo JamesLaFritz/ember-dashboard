@@ -16,7 +16,7 @@ import {
   SHELL_PATH, SHELL_NAME, CMD_TIMEOUT_MS, MAX_HOPS, MAX_AUTO_CONTINUE,
   clipOutput, runCommand, AgentSession, systemFor, PRESETS, escapesWorkspace, environmentPrompt, TOOL_DEFS,
   SUMMARY_MAX_TOKENS, MIN_SUMMARY_CHARS, MAX_EMPTY_RETRIES, MAX_TOOL_CALLS_PER_TURN, capToolCalls,
-  MAX_REASONING_OVERRUNS, REASONING_BUDGET, CONTEXT_SAFETY_MARGIN,
+  MAX_REASONING_OVERRUNS, REASONING_BUDGET, CONTEXT_SAFETY_MARGIN, MIN_OUTPUT_FLOOR,
 } from '../lib/agent.js';
 import { MAX_OUTPUT_TOKENS } from '../lib/lmstudio.js';
 
@@ -790,6 +790,39 @@ describe('context budgeting', () => {
     const md = await s.report();
     assert.match(md, /misconfigured/);
     assert.match(md, /Lower maxOutputTokens/);
+  });
+
+  // The portable rule from the research: G <= min(M, C - I - S). Sending a
+  // constant ceiling implements only the M term.
+  test('the generation cap follows min(M, C - I - S)', () => {
+    const s = mk();
+    const C = 128500, S = CONTEXT_SAFETY_MARGIN, M = MAX_OUTPUT_TOKENS;
+    for (const I of [1000, 50000, 90000, 100000, 120000]) {
+      s.lastPromptTokens = I;
+      const expected = Math.max(MIN_OUTPUT_FLOOR, Math.min(M, C - I - S));
+      assert.equal(s.outputCapFor(C), expected, `input ${I}`);
+    }
+  });
+
+  test('a request never asks for more than the window can hold', () => {
+    const s = mk();
+    const C = 128500;
+    for (const I of [1000, 60000, 96000, 126000]) {
+      s.lastPromptTokens = I;
+      const cap = s.outputCapFor(C);
+      if (cap === MIN_OUTPUT_FLOOR) continue;     // floor case is reported, not silently sent
+      assert.ok(I + cap <= C, `input ${I} + cap ${cap} = ${I + cap} exceeds ${C}`);
+    }
+  });
+
+  test('a nearly full context reports the floor rather than dribbling', async () => {
+    const s = mk();
+    s.contextWindow = 128500;
+    s.lastPromptTokens = 128000;
+    assert.equal(s.outputCapFor(128500), MIN_OUTPUT_FLOOR);
+    const md = await s.report();
+    assert.match(md, /floor reached/);
+    assert.match(md, /too full to work in/);
   });
 
   test('the effective content budget is reported, not left to be inferred', async () => {

@@ -115,6 +115,7 @@
     "maxReasoningOverruns": 1,
     "reasoningBudget": 0,
     "contextSafetyMargin": 2048,
+    "minOutputFloor": 1024,
     "streamIdleMs": 120000,
     "toolIdleMs": 600000,
     "shell": null,
