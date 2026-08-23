@@ -114,6 +114,7 @@
     "maxToolCallsPerTurn": 32,
     "maxReasoningOverruns": 1,
     "reasoningBudget": 0,
+    "contextSafetyMargin": 2048,
     "streamIdleMs": 120000,
     "toolIdleMs": 600000,
     "shell": null,

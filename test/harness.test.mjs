@@ -16,7 +16,7 @@ import {
   SHELL_PATH, SHELL_NAME, CMD_TIMEOUT_MS, MAX_HOPS, MAX_AUTO_CONTINUE,
   clipOutput, runCommand, AgentSession, systemFor, PRESETS, escapesWorkspace, environmentPrompt, TOOL_DEFS,
   SUMMARY_MAX_TOKENS, MIN_SUMMARY_CHARS, MAX_EMPTY_RETRIES, MAX_TOOL_CALLS_PER_TURN, capToolCalls,
-  MAX_REASONING_OVERRUNS, REASONING_BUDGET,
+  MAX_REASONING_OVERRUNS, REASONING_BUDGET, CONTEXT_SAFETY_MARGIN,
 } from '../lib/agent.js';
 import { MAX_OUTPUT_TOKENS } from '../lib/lmstudio.js';
 
@@ -752,6 +752,58 @@ describe('config persistence', () => {
     const keys = [...src.matchAll(/(?:num|str|flag)\(\s*[`'"][A-Z_]+[`'"]\s*,\s*'([a-zA-Z]+)'/g)].map(m => m[1]);
     const missing = [...new Set(keys)].filter(k => !(k in cfg.harness));
     assert.deepEqual(missing, [], `harness keys read by the code but absent from the shipped config: ${missing}`);
+  });
+});
+
+describe('context budgeting', () => {
+  // A context window holds prompt AND completion — every generated token is
+  // appended to the same sequence. So the compaction threshold has to leave room
+  // for a whole response, and a fixed ratio cannot know the output ceiling:
+  // 0.75 x 124,928 + 32,768 = 126,464, overflowing a 124,928 window by 1,536.
+  const mk = () => new AgentSession({ id: 'b', lm: { async complete() { return 'x'; }, async chatStream() { throw new Error('x'); }, async models() { return []; } },
+    model: 'm', workspace: tmp, preset: 'coding-agent', mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: false });
+
+  test('a turn starting at the threshold can still fit a full response', () => {
+    const s = mk();
+    for (const win of [32768, 65536, 100000, 124928, 200000, 262144]) {
+      const t = s.compactThreshold(win);
+      if (win - MAX_OUTPUT_TOKENS - CONTEXT_SAFETY_MARGIN <= 0) continue;   // flagged as misconfigured instead
+      assert.ok(t + MAX_OUTPUT_TOKENS <= win,
+        `window ${win}: threshold ${t} + ceiling ${MAX_OUTPUT_TOKENS} = ${t + MAX_OUTPUT_TOKENS}, over the window`);
+    }
+  });
+
+  test('the real configuration no longer overflows', () => {
+    const t = mk().compactThreshold(124928);
+    assert.equal(t, 124928 - MAX_OUTPUT_TOKENS - CONTEXT_SAFETY_MARGIN);
+    assert.ok(t < Math.round(124928 * 0.75), 'the derived threshold must be tighter than the old fixed ratio here');
+  });
+
+  test('the ratio still binds when it is the tighter of the two', () => {
+    // A large window has plenty of output headroom, so 0.75 is the constraint.
+    assert.equal(mk().compactThreshold(262144), Math.round(262144 * 0.75));
+  });
+
+  test('a window too small for the ceiling is reported, not silently clamped', async () => {
+    const s = mk();
+    s.contextWindow = MAX_OUTPUT_TOKENS;      // no room for prompt + response at all
+    const md = await s.report();
+    assert.match(md, /misconfigured/);
+    assert.match(md, /Lower maxOutputTokens/);
+  });
+
+  test('the effective content budget is reported, not left to be inferred', async () => {
+    const s = mk();
+    s.contextWindow = 124928;
+    const md = await s.report();
+    const row = md.split('\n').find(l => l.includes('Effective content budget'));
+    assert.ok(row, 'no effective content budget row');
+    if (REASONING_BUDGET) {
+      assert.match(row, new RegExp((MAX_OUTPUT_TOKENS - REASONING_BUDGET).toLocaleString().replace(',', ',')));
+      assert.match(row, /reasoning budget/);
+    } else {
+      assert.match(row, /no reasoning budget/);
+    }
   });
 });
 

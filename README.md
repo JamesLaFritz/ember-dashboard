@@ -160,10 +160,27 @@ EMBER_MAX_HOPS=400 node server.js
 | `maxToolCallsPerTurn` | `EMBER_MAX_TOOL_CALLS` | `32` | Tool calls executed from one assistant turn; duplicates are removed first |
 | `maxReasoningOverruns` | `EMBER_MAX_REASONING_OVERRUNS` | `1` | Retries when the whole output budget goes to reasoning |
 | `reasoningBudget` | `EMBER_REASONING_BUDGET` | `0` (none) | **Declared, not detected** — see below |
+| `contextSafetyMargin` | `EMBER_CONTEXT_MARGIN` | `2048` | Slack between the compaction threshold and the window, on top of the output ceiling |
 
 These are read once at start-up, so a change needs a restart.
 
 The server writes this file when you add a workspace or change a skill's model, and it **merges** those keys over whatever is on disk rather than writing its startup copy back. An earlier version overwrote the whole file, which silently reverted any harness setting edited while the server was running.
+
+### The three budgets, and how they interact
+
+A context window holds **prompt and completion together** — every generated token is appended to the same sequence and attended to by the next one. That makes the three settings interdependent, and getting them wrong is silent:
+
+| | value here | what it bounds |
+|---|---|---|
+| **Context window** | 124,928 | prompt + completion, total. Set when the model loads |
+| **`maxOutputTokens`** | 32,768 | one response: reasoning + content + tool-call arguments |
+| **`reasoningBudget`** | 8,192 | the thinking share of that response (LM Studio, per model) |
+
+Two consequences the harness now enforces rather than assuming:
+
+**The compaction threshold must leave room for a whole response.** A fixed ratio cannot know the output ceiling, and at these values the two collide: a turn starting just under 0.75 × 124,928 = 93,696 that then generates a full 32,768 reaches **126,464** — over the window by 1,536. So the threshold is derived as the tighter of the ratio and `window − maxOutputTokens − contextSafetyMargin`, which here gives **90,112**, and the run report says which constraint bound. If the ceiling leaves no room at all the report calls it misconfigured instead of quietly clamping.
+
+**Reasoning and content share one allowance.** With a reasoning budget in force the room left for actual output is `maxOutputTokens − reasoningBudget` = **24,576** here, and the report states it — that is the number that decides whether a large file fits in one turn, and it was previously left to be inferred.
 
 ### Reasoning budget
 
