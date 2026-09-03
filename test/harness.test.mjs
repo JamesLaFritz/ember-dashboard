@@ -609,6 +609,67 @@ describe('cutPoint falls back on size', () => {
   });
 });
 
+describe('oversized tool groups', () => {
+  // A tool_calls group is indivisible - splitting it orphans a result from the
+  // assistant that requested it - so a fold that cuts correctly can still leave
+  // the context over the window when ONE group is bigger than the budget.
+  // capToolCalls bounds the COUNT (32); read_file bounds each result (40,000
+  // chars); nothing bounded the product, and 32 x 40,000 = 1,280,000 chars is
+  // ~2.6x a 124,928-token window in a group nothing can split.
+  const oneGroup = (n, chars) => {
+    const s = new AgentSession({ id: 'w', lm: { async complete() { return 'NOTE. '.repeat(80); }, async chatStream() { throw new Error('x'); }, async models() { return []; } },
+      model: 'm', workspace: tmp, preset: 'coding-agent', mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: false });
+    s.contextWindow = 124928;
+    s.messages.push({ role: 'user', content: 'go' });
+    const calls = Array.from({ length: n }, (_, i) => ({ id: 'c' + i, type: 'function', function: { name: 'read_file', arguments: JSON.stringify({ path: `src/File${i}.cs` }) } }));
+    s.messages.push({ role: 'assistant', content: null, tool_calls: calls });
+    for (const c of calls) s.messages.push({ role: 'tool', tool_call_id: c.id, content: 'x'.repeat(chars) });
+    s.lastPromptTokens = Math.round(JSON.stringify(s.messages).length / 4);
+    return s;
+  };
+
+  test('the legal worst case still fits the window after a fold', async () => {
+    const s = oneGroup(MAX_TOOL_CALLS_PER_TURN, 40000);   // the cap x read_file's ceiling
+    await s.compact('auto');
+    const bytes = JSON.stringify(s.messages).length;
+    assert.ok(bytes <= s.contextWindow * 4, `kept ${bytes} chars against a ${s.contextWindow * 4} budget`);
+  });
+
+  test('eviction drops content but never the message', async () => {
+    const s = oneGroup(MAX_TOOL_CALLS_PER_TURN, 40000);
+    const results = s.messages.filter(m => m.role === 'tool').length;
+    await s.compact('auto');
+    assert.equal(s.messages.filter(m => m.role === 'tool').length, results, 'a tool result was removed rather than emptied');
+    const first = s.messages.findIndex(m => m.role === 'tool');
+    const owner = s.messages.slice(0, first).reverse().find(m => m.role === 'assistant');
+    assert.ok(owner?.tool_calls?.length, 'a tool result survived without its assistant');
+  });
+
+  test('the stub says where the content went', async () => {
+    const s = oneGroup(MAX_TOOL_CALLS_PER_TURN, 40000);
+    await s.compact('auto');
+    const ev = s.messages.find(m => m.role === 'tool' && String(m.content).startsWith('[evicted'));
+    assert.ok(ev, 'nothing was evicted on a context 2.6x the window');
+    assert.match(ev.content, /read_file\(src\/File\d+\.cs\)/, 'the stub does not name the source');
+  });
+
+  test('the newest results survive intact', async () => {
+    const s = oneGroup(MAX_TOOL_CALLS_PER_TURN, 40000);
+    await s.compact('auto');
+    const tools = s.messages.filter(m => m.role === 'tool');
+    const last = tools[tools.length - 1];
+    assert.equal(last.content.length, 40000, 'eviction reached the most recent result');
+  });
+
+  test('a group that already fits is left alone', async () => {
+    const s = oneGroup(4, 2000);
+    s.lastPromptTokens = 2203081;                  // force the fold to run
+    await s.compact('auto');
+    const ev = s.messages.filter(m => m.role === 'tool' && String(m.content).startsWith('[evicted'));
+    assert.equal(ev.length, 0, 'evicted content from a conversation that already fit');
+  });
+});
+
 describe('reasoning overrun', () => {
   // FAULT (session ba96be9b): five turns hit the output ceiling with content=0.
   // The whole 16,384-token budget went to reasoning_content, so auto-continue's
