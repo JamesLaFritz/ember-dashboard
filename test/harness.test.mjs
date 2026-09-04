@@ -280,6 +280,37 @@ describe('context length reporting', () => {
   });
 });
 
+describe('every bail reason reaches the report', () => {
+  // The harness emits four bail reasons - output_ceiling, max_hops,
+  // reasoning_overrun, empty_turn - and the report only ever asked about the
+  // first two. Measured 2026-09-04: a 197-hop run ended on an empty_turn bail
+  // and the report printed "Harness bail: no". A run the harness stopped, scored
+  // as a run the model finished, is the worst reading this report can produce.
+  const reported = async (records) => {
+    const s = session({ async chatStream() { throw new Error('unused'); }, async models() { return [{ key: 'stub', loadedContextLength: 32768, contextLength: 32768 }]; } });
+    s.history.push(...records);
+    return s.report();
+  };
+  const bailRow = (md) => md.split(String.fromCharCode(10)).find(l => l.includes('Harness bail')) ?? '';
+
+  for (const reason of ['output_ceiling', 'max_hops', 'reasoning_overrun', 'empty_turn']) {
+    test(`a ${reason} bail is reported as a bail`, async () => {
+      const md = await reported([{ kind: 'bail', reason, text: 'stopped' }]);
+      const row = bailRow(md);
+      assert.match(row, /yes/i, `a ${reason} bail was reported as: ${row}`);
+    });
+  }
+
+  test('an unknown future reason still reports as a bail', async () => {
+    const md = await reported([{ kind: 'bail', reason: 'some_new_limit', text: 'stopped' }]);
+    assert.match(bailRow(md), /yes/i, 'a bail reason the report does not know about was swallowed');
+  });
+
+  test('no bail still reports no', async () => {
+    assert.match(bailRow(await reported([])), /\| no \|/, 'invented a bail on a clean run');
+  });
+});
+
 describe('a fold must actually shrink', () => {
   // Measured 2026-09-04, round 2 of the harness gauntlet: a compaction recorded
   // 90,829 -> 91,544. Two causes, both real. `before` was the server's tokenizer
