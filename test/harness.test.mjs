@@ -280,6 +280,43 @@ describe('context length reporting', () => {
   });
 });
 
+describe('model id resolution', () => {
+  // LM Studio exposes two strings for one loaded model and accepts either for
+  // inference: the model `key` (quant suffix included) and the loaded instance
+  // `id` (without it) - the string `lms ps` prints, so the one a human copies.
+  // Matching only `key` left the window null on an otherwise perfect run, which
+  // disables auto-compaction and the generation cap SILENTLY.
+  const catalogue = [{
+    key: 'qwen3.6-35b-a3b-mtp@q3_k_m',
+    instanceIds: ['qwen3.6-35b-a3b-mtp'],
+    loadedContextLength: 128512, contextLength: 128512, maxContextLength: 262144,
+  }];
+  const sessionFor = (model) => new AgentSession({
+    id: 'r', lm: { async chatStream() { throw new Error('unused'); }, async models() { return catalogue; } },
+    mcp: null, model, workspace: tmp, preset: 'coding-agent', mode: 'plan',
+    broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: false });
+
+  test('resolves by model key', async () => {
+    const md = await sessionFor('qwen3.6-35b-a3b-mtp@q3_k_m').report();
+    assert.match(md, /\*\*128,512\*\*/, 'the model key did not resolve to the loaded window');
+  });
+
+  test('resolves by loaded instance id', async () => {
+    const md = await sessionFor('qwen3.6-35b-a3b-mtp').report();
+    assert.match(md, /\*\*128,512\*\*/, 'the loaded instance id did not resolve to the loaded window');
+  });
+
+  test('the resolved window still drives the compaction threshold', async () => {
+    const md = await sessionFor('qwen3.6-35b-a3b-mtp').report();
+    assert.match(md, /93,696/, 'threshold not derived from the window reached via the instance id');
+  });
+
+  test('an unresolvable model reports unknown rather than a plausible number', async () => {
+    const md = await sessionFor('no-such-model').report();
+    assert.doesNotMatch(md, /\*\*128,512\*\*/, 'invented a window for a model it could not find');
+  });
+});
+
 describe('compaction', () => {
   // FAULT (found 2026-08-21 in session 982e1cb3): compact() referenced
   // `userIdxs`, a local that the #cutPoint() refactor had removed. It folded
