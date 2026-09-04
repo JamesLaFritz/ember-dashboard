@@ -280,6 +280,54 @@ describe('context length reporting', () => {
   });
 });
 
+describe('a fold must actually shrink', () => {
+  // Measured 2026-09-04, round 2 of the harness gauntlet: a compaction recorded
+  // 90,829 -> 91,544. Two causes, both real. `before` was the server's tokenizer
+  // count while `after` was a chars/4 estimate, so the delta compared two
+  // different measurements; and a fold whose summary costs more than the turns
+  // it removed buys nothing, then fires again six turns later.
+  const sess = (lm) => new AgentSession({ id: 'f', lm, model: 'm', workspace: tmp, preset: 'coding-agent',
+    mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: false });
+  const verbose = { async complete() { return 'SUMMARY. '.repeat(400); }, async chatStream() { throw new Error('x'); }, async models() { return []; } };
+
+  test('a fold that would grow the context is refused and rolled back', async () => {
+    const s = sess(verbose);
+    s.contextWindow = 128512;
+    // One short user turn to fold: removing it saves far less than a long summary adds.
+    for (let i = 0; i < 5; i++) s.messages.push({ role: 'user', content: 'hi' }, { role: 'assistant', content: 'ok' });
+    const kept = JSON.stringify(s.messages);
+    s.lastPromptTokens = 120000;                 // over any threshold, so the fold is attempted
+    const folded = await s.compact('auto');
+    assert.equal(folded, false, 'accepted a fold that does not shrink the context');
+    assert.equal(JSON.stringify(s.messages), kept, 'history was not restored after the refused fold');
+  });
+
+  test('the refusal is recorded, not silent', async () => {
+    const s = sess(verbose);
+    s.contextWindow = 128512;
+    for (let i = 0; i < 5; i++) s.messages.push({ role: 'user', content: 'hi' }, { role: 'assistant', content: 'ok' });
+    s.lastPromptTokens = 120000;
+    await s.compact('auto');
+    const rec = s.history.filter(h => h.kind === 'compact_failed');
+    assert.equal(rec.length, 1, 'a refused fold left no record');
+    assert.match(rec[0].text, /would not shrink|costs more than/i, 'the record does not say why it was refused');
+  });
+
+  test('the record carries a like-for-like baseline beside the server count', async () => {
+    const s = sess({ async complete() { return 'NOTE. '.repeat(300); }, async chatStream() { throw new Error('x'); }, async models() { return []; } });
+    s.contextWindow = 128512;
+    for (let i = 0; i < 40; i++) {
+      s.messages.push({ role: 'user', content: 'q'.repeat(4000) }, { role: 'assistant', content: 'a'.repeat(4000) });
+    }
+    s.lastPromptTokens = 95000;
+    await s.compact('auto');
+    const rec = s.history.find(h => h.kind === 'compacted');
+    assert.ok(rec, 'the fold did not happen');
+    assert.equal(typeof rec.beforeEst, 'number', 'no like-for-like baseline recorded');
+    assert.ok(rec.after < rec.beforeEst, `after ${rec.after} not below beforeEst ${rec.beforeEst}`);
+  });
+});
+
 describe('the report surfaces harness actions', () => {
   // Instrumentation is code and lies like code. Anything the HARNESS did that
   // could be mistaken for something the MODEL did has to appear in the report,
