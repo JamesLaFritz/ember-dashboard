@@ -280,6 +280,50 @@ describe('context length reporting', () => {
   });
 });
 
+describe('the report surfaces harness actions', () => {
+  // Instrumentation is code and lies like code. Anything the HARNESS did that
+  // could be mistaken for something the MODEL did has to appear in the report,
+  // or the score silently inherits the misattribution. Found 2026-09-04 on a
+  // 198-hop run: two empty-turn retries and three folds carrying eviction
+  // counters, all recorded, none rendered.
+  const reported = async (records) => {
+    const s = session({ async chatStream() { throw new Error('unused'); }, async models() { return [{ key: 'stub', loadedContextLength: 32768, contextLength: 32768 }]; } });
+    s.history.push(...records);
+    return s.report();
+  };
+
+  test('an empty turn the harness retried is visible', async () => {
+    const md = await reported([{ kind: 'empty_turn', n: 1, max: 2, strayCall: false }]);
+    assert.match(md, /Empty turns retried/, 'the report does not mention empty-turn retries at all');
+    assert.match(md, /Empty turns retried\*\* \| 1/, 'the count is wrong or missing');
+  });
+
+  test('a stray tool call on an empty turn is called out', async () => {
+    const md = await reported([{ kind: 'empty_turn', n: 1, max: 2, strayCall: true }]);
+    assert.match(md, /stray tool call/, 'a stray call on an empty turn was not reported');
+  });
+
+  test('no empty turns reports zero rather than going silent', async () => {
+    const md = await reported([]);
+    assert.match(md, /Empty turns retried\*\* \| 0/, 'the row vanishes when the count is zero');
+  });
+
+  test('content the fold evicted is visible', async () => {
+    const md = await reported([{ kind: 'compacted', reason: 'auto', atTurn: 4, before: 120438, after: 54438,
+      folded: 1, window: 128512, summaryChars: 1053, evictedResults: 7, evictedChars: 240000 }]);
+    assert.match(md, /Results evicted/, 'the compaction table has no eviction column');
+    assert.match(md, /\*\*7\*\*/, 'the number of evicted results is not shown');
+    assert.match(md, /240,000 chars/, 'the volume of evicted content is not shown');
+  });
+
+  test('a fold that evicted nothing says zero, not blank', async () => {
+    const md = await reported([{ kind: 'compacted', reason: 'auto', atTurn: 4, before: 94527, after: 12158,
+      folded: 3, window: 128512, summaryChars: 2224, evictedResults: 0, evictedChars: 0 }]);
+    const row = md.split(String.fromCharCode(10)).find(l => l.includes('94527'));
+    assert.ok(row && row.trim().endsWith('| 0 |'), `eviction cell missing on a clean fold: ${row}`);
+  });
+});
+
 describe('model id resolution', () => {
   // LM Studio exposes two strings for one loaded model and accepts either for
   // inference: the model `key` (quant suffix included) and the loaded instance
