@@ -853,6 +853,60 @@ describe('config persistence', () => {
   });
 });
 
+describe('stale input measurement', () => {
+  // `lastPromptTokens` is the SERVER's count for the request already sent. Tool
+  // results appended since are not in it. Between hops it is therefore stale by
+  // exactly the payload just fetched, and one read_file returns up to 40,000
+  // chars (~10,000 tokens). Measured 2026-09-04: the between-hop check saw a
+  // stale value under the 93,696 threshold, allowed the request, and the request
+  // went out at 120,438 - 26,742 past the threshold, 8,074 under the window. The
+  // run survived on the generation clamp, not on timely folding.
+  const mk = (win) => {
+    const s = new AgentSession({ id: 'stale', lm: { async complete() { return 'NOTE. '.repeat(80); }, async chatStream() { throw new Error('x'); }, async models() { return []; } },
+      model: 'm', workspace: tmp, preset: 'coding-agent', mode: 'plan', broadcast: () => {}, onDirty: () => {}, stateDir: null, identity: false });
+    s.contextWindow = win;
+    s.messages.push({ role: 'system', content: 'sys' }, { role: 'user', content: 'go' });
+    return s;
+  };
+  // ~10,000 tokens of tool result - the size one read_file can return.
+  const fatResult = (s, id) => {
+    s.messages.push({ role: 'assistant', content: null, tool_calls: [{ id, type: 'function', function: { name: 'read_file', arguments: '{}' } }] });
+    s.messages.push({ role: 'tool', tool_call_id: id, content: 'x'.repeat(40000) });
+  };
+
+  test('the generation cap shrinks as results arrive, before the server re-counts', () => {
+    const s = mk(128512);
+    s.lastPromptTokens = 1000;                      // what the server saw last time
+    const before = s.outputCapFor(128512);
+    assert.equal(before, MAX_OUTPUT_TOKENS, 'an empty context should allow the full ceiling');
+    for (let i = 0; i < 12; i++) fatResult(s, 'c' + i);   // ~120,000 tokens arrive
+    const after = s.outputCapFor(128512);
+    assert.ok(after < before, 'cap ignored 12 large tool results appended since the last request');
+    assert.ok(after < 10000, `cap should be headroom-bound once the window is nearly full, got ${after}`);
+  });
+
+  test('a result arriving after the server counted is budgeted for', () => {
+    const s = mk(128512);
+    for (let i = 0; i < 10; i++) fatResult(s, 'c' + i);
+    // Simulate the server having counted exactly this conversation.
+    s.lastPromptTokens = Math.round(JSON.stringify(s.messages).length / 4);
+    const staleCap = Math.max(MIN_OUTPUT_FLOOR,
+      Math.min(MAX_OUTPUT_TOKENS, 128512 - s.lastPromptTokens - CONTEXT_SAFETY_MARGIN));
+    fatResult(s, 'later');                          // one more read_file lands
+    const cap = s.outputCapFor(128512);
+    assert.ok(cap < staleCap,
+      `cap ${cap} still budgets against the pre-result count (${staleCap}); the new result was invisible`);
+  });
+
+  test('the server count still wins when it is the larger number', () => {
+    const s = mk(128512);
+    s.lastPromptTokens = 110000;                    // server measured more than the messages estimate
+    const cap = s.outputCapFor(128512);
+    assert.equal(cap, 128512 - 110000 - CONTEXT_SAFETY_MARGIN,
+      'ignored the server measurement in favour of a smaller estimate');
+  });
+});
+
 describe('context budgeting', () => {
   // A context window holds prompt AND completion — every generated token is
   // appended to the same sequence. So the compaction threshold has to leave room
